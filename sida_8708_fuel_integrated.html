@@ -12230,12 +12230,12 @@ const ORG = window.ORG || {};
             </div>`;
         });
 
-        const vehBudgetZero = rows.length > 0 && calcSum > 0 && claimAmt === 0 && typeof isBudgetCapActive === 'function' && isBudgetCapActive();
+        const showBg111Claim = claimAmt > 0 && (calcSum <= 0 || claimAmt < calcSum);
         const calcText = calcSum > 0 ? toThaiBahtText(calcSum) : '';
         const calcSumTh = calcSum ? (toThaiNum(formatMoney(calcSum)) || formatMoney(calcSum)) : '';
-        const claimFmtRaw = claimAmt > 0 ? (formatMoney(claim) || '') : (vehBudgetZero ? '0' : '');
-        const claimThAmt = claimAmt > 0 ? (toThaiNum(claimFmtRaw) || claimFmtRaw) : (vehBudgetZero ? '๐' : '');
-        const claimWordsDisp = (claimAmt > 0 || vehBudgetZero) ? (claimText || toThaiBahtText(claimAmt)) : '';
+        const claimFmtRaw = showBg111Claim ? (formatMoney(claim) || '') : '';
+        const claimThAmt = showBg111Claim ? (toThaiNum(claimFmtRaw) || claimFmtRaw) : '';
+        const claimWordsDisp = showBg111Claim ? (claimText || toThaiBahtText(claimAmt)) : '';
         const signPartsForBg = parseFullThaiDateParts(signFull);
         const signFullTh = (signFull && signPartsForBg.day !== '..')
             ? `${toThaiNum(signPartsForBg.day)} ${signPartsForBg.month} ${toThaiNum(signPartsForBg.year)}`
@@ -12256,7 +12256,7 @@ const ORG = window.ORG || {};
                 `<div class="bg111-total-words">รวมทั้งสิ้น&nbsp;&nbsp;(ตัวอักษร)&nbsp;&nbsp;(${escHtml(calcText || '................................')})</div>` +
                 `<div class="bg111-gap">&nbsp;</div>` +
                 `<div class="bg111-cert">ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกใบเสร็จรับเงินจากผู้รับได้&nbsp;&nbsp;และข้าพเจ้าได้จ่ายในงานราชการโดยแท้</div>`;
-            if (claimAmt > 0 || vehBudgetZero) {
+            if (showBg111Claim) {
                 underHtml +=
                     `<div class="bg111-gap">&nbsp;</div>` +
                     `<div class="bg111-claim">ข้าพเจ้า ขอเบิกเพียง ${claimThAmt} บาท (${escHtml(claimWordsDisp)})</div>`;
@@ -12265,7 +12265,7 @@ const ORG = window.ORG || {};
 
         let footerHtml = '';
         if (rows.length) {
-            if (claimAmt > 0 || vehBudgetZero) {
+            if (showBg111Claim) {
                 footerHtml += `
             <div class="sign-l">
                 <div>ลงชื่อ...........................................................</div>
