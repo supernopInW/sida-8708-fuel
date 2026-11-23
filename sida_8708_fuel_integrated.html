@@ -3273,6 +3273,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
           <label for="gate-other-tambon" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;">ตำบล / แขวง ที่ตั้งสำนักงาน</label>
           <select id="gate-other-tambon" style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none;background:#ffffff;color:#0f172a;"></select>
         </div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+          <button type="button" onclick="window.detectAreaFromGeo && window.detectAreaFromGeo({provSelId:'gate-other-province',ampSelId:'gate-other-amphoe',tamSelId:'gate-other-tambon',statusElId:'gate-geo-status'})" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid #0284c7;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;cursor:pointer;">📍 จับพิกัด Wi-Fi / GPS เลือกอำเภอให้อัตโนมัติ</button>
+          <div id="gate-geo-status" style="font-size:11px;color:#64748b;text-align:center;min-height:14px;"></div>
+        </div>
       </div>
 
       <label id="gate-pass-label" for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน (สำนักงานเกษตรอำเภอสีดา)</label>
@@ -3341,6 +3345,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         var runFill = function(){
           if (typeof window.populateThAreaSelects === 'function') {
             window.populateThAreaSelects('gate-other-province', 'gate-other-amphoe', 'gate-other-tambon', initP, initA, initT);
+            if (!initA && !window.__gateGeoTried && typeof window.detectAreaFromGeo === 'function') {
+              window.__gateGeoTried = true;
+              window.detectAreaFromGeo({
+                provSelId: 'gate-other-province',
+                ampSelId: 'gate-other-amphoe',
+                tamSelId: 'gate-other-tambon',
+                statusElId: 'gate-geo-status'
+              });
+            }
             return true;
           }
           return false;
@@ -7562,6 +7575,153 @@ const ORG = window.ORG || {};
         finalizeOrgDerived();
         rebuildDestRuntime();
     }
+
+    window.matchThAreaFromText = function (rawTexts) {
+        var data = (window.TH_AREA && window.TH_AREA.data) ? window.TH_AREA.data : {};
+        var joined = (Array.isArray(rawTexts) ? rawTexts : [rawTexts])
+            .filter(Boolean)
+            .map(function (s) { return String(s).trim(); })
+            .join(' | ');
+        if (!joined) return null;
+
+        var cleanJoined = joined.replace(/\s+/g, ' ');
+        var provs = Object.keys(data);
+        var foundProv = '';
+        // 1. Match province (prefer longer exact match)
+        provs.slice().sort(function (a, b) { return b.length - a.length; }).some(function (p) {
+            if (cleanJoined.indexOf('จังหวัด' + p) !== -1 || cleanJoined.indexOf('จ.' + p) !== -1 || cleanJoined.indexOf(p) !== -1) {
+                foundProv = p;
+                return true;
+            }
+            return false;
+        });
+        if (!foundProv) return null;
+
+        var amps = Object.keys(data[foundProv] || {});
+        var foundAmp = '';
+        // 2. Match amphoe/district inside province
+        amps.slice().sort(function (a, b) { return b.length - a.length; }).some(function (a) {
+            if (cleanJoined.indexOf('อำเภอ' + a) !== -1 || cleanJoined.indexOf('อ.' + a) !== -1 || cleanJoined.indexOf('เขต' + a) !== -1) {
+                foundAmp = a;
+                return true;
+            }
+            return false;
+        });
+        if (!foundAmp) {
+            amps.slice().sort(function (a, b) { return b.length - a.length; }).some(function (a) {
+                if (cleanJoined.indexOf(a) !== -1) {
+                    foundAmp = a;
+                    return true;
+                }
+                return false;
+            });
+        }
+        if (!foundAmp) foundAmp = amps[0] || '';
+
+        // 3. Match tambon/sub-district inside amphoe
+        var tList = listTambons(foundProv, foundAmp);
+        var foundTam = '';
+        tList.slice().sort(function (a, b) { return b.name.length - a.name.length; }).some(function (t) {
+            if (cleanJoined.indexOf('ตำบล' + t.name) !== -1 || cleanJoined.indexOf('ต.' + t.name) !== -1 || cleanJoined.indexOf('แขวง' + t.name) !== -1 || cleanJoined.indexOf(t.name) !== -1) {
+                foundTam = t.name;
+                return true;
+            }
+            return false;
+        });
+        if (!foundTam && tList.length) foundTam = tList[0].name;
+
+        return { province: foundProv, amphoe: foundAmp, tambon: foundTam };
+    };
+
+    window.detectAreaFromGeo = async function (opts) {
+        var o = opts || {};
+        var statusEl = o.statusElId ? document.getElementById(o.statusElId) : null;
+        var setStatus = function (msg, color) {
+            if (!statusEl) return;
+            statusEl.textContent = msg;
+            if (color) statusEl.style.color = color;
+        };
+
+        if (!/^https?:$/i.test(location.protocol || '')) {
+            setStatus('โหมดออฟไลน์ กรุณาเลือกจังหวัด/อำเภอจากรายการด้านบน', '#64748b');
+            return null;
+        }
+        if (!navigator.geolocation) {
+            setStatus('เบราว์เซอร์ไม่รองรับการจับพิกัด กรุณาเลือกจากรายการ', '#b45309');
+            return null;
+        }
+
+        setStatus('📍 กำลังจับพิกัด Wi-Fi / GPS ของคุณ...', '#0369a1');
+        var pos = null;
+        try {
+            pos = await new Promise(function (resolve, reject) {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                });
+            });
+        } catch (err) {
+            var reason = (err && err.code === 1) ? 'ไม่ได้อนุญาตเข้าถึงตำแหน่ง (เลือกจากรายการด้านบนได้)' : 'ไม่สามารถดึงพิกัดได้ในขณะนี้';
+            setStatus('⚠️ ' + reason, '#b45309');
+            return null;
+        }
+
+        var lat = pos.coords.latitude;
+        var lon = pos.coords.longitude;
+        setStatus('🗺️ กำลังแปลงพิกัดเป็น จังหวัด / อำเภอ / ตำบล...', '#0369a1');
+
+        var texts = [];
+        try {
+            var r1 = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon) + '&zoom=14&addressdetails=1&accept-language=th');
+            if (r1.ok) {
+                var j1 = await r1.json();
+                if (j1 && j1.address) {
+                    texts.push(j1.address.province, j1.address.state, j1.address.county, j1.address.city_district, j1.address.municipality, j1.address.suburb, j1.address.town, j1.address.village, j1.display_name);
+                }
+            }
+        } catch (e) { /* fallback below */ }
+
+        var matched = window.matchThAreaFromText(texts);
+        if (!matched) {
+            try {
+                var r2 = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&localityLanguage=th');
+                if (r2.ok) {
+                    var j2 = await r2.json();
+                    var adminNames = (j2 && j2.localityInfo && Array.isArray(j2.localityInfo.administrative))
+                        ? j2.localityInfo.administrative.map(function (x) { return x.name; })
+                        : [];
+                    texts = [j2.principalSubdivision, j2.city, j2.locality].concat(adminNames);
+                    matched = window.matchThAreaFromText(texts);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!matched) {
+            setStatus('⚠️ พบพิกัด (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ') แต่ไม่พบอำเภอที่ตรงกัน กรุณาเลือกจากรายการ', '#b45309');
+            return null;
+        }
+
+        if (o.provSelId && o.ampSelId && o.tamSelId && typeof window.populateThAreaSelects === 'function') {
+            window.populateThAreaSelects(o.provSelId, o.ampSelId, o.tamSelId, matched.province, matched.amphoe, matched.tambon, o.onAfterTambon);
+        }
+        setStatus('✅ พบพิกัดของคุณ: ต.' + matched.tambon + ' อ.' + matched.amphoe + ' จ.' + matched.province, '#047857');
+
+        if (o.applyImmediately) {
+            var officePrefix = (matched.province === 'กรุงเทพมหานคร') ? 'สำนักงานเกษตรเขต' : 'สำนักงานเกษตรอำเภอ';
+            applyAreaSelection({
+                province: matched.province,
+                amphoe: matched.amphoe,
+                officeTambon: matched.tambon || matched.amphoe,
+                officeName: officePrefix + matched.amphoe,
+                tambons: listTambons(matched.province, matched.amphoe)
+            });
+            if (typeof showToast === 'function') {
+                showToast('📍 ย้ายพื้นที่ตามพิกัดเป็น ' + officePrefix + matched.amphoe + ' จ.' + matched.province + ' แล้ว');
+            }
+        }
+        return matched;
+    };
 
     window.populateThAreaSelects = function (provSelId, ampSelId, tamSelId, initProv, initAmp, initTam, onAfterTambon) {
         var data = (window.TH_AREA && window.TH_AREA.data) ? window.TH_AREA.data : {};
@@ -17799,7 +17959,11 @@ const ORG = window.ORG || {};
             <button type="button" onclick="closeCustomAreaModal()" class="text-white/80 hover:text-white font-bold px-2">✕</button>
         </div>
         <div class="p-4 space-y-3 text-xs text-slate-800">
-            <p class="leading-relaxed text-slate-600">กรอกชื่ออำเภอและจังหวัดของคุณ ระบบจะปรับชื่อสำนักงาน หัวเอกสาร เรียนผู้ว่าราชการจังหวัด ตำแหน่งเกษตรอำเภอ และจุดเริ่มต้นค้นหาระยะทาง DOH TO TRAVEL ให้อัตโนมัติ พร้อมจำค่าไว้ในเบราว์เซอร์นี้</p>
+            <p class="leading-relaxed text-slate-600">เลือกจังหวัด/อำเภอ/ตำบล หรือกดจับพิกัด Wi-Fi / GPS ระบบจะปรับชื่อสำนักงาน หัวเอกสาร เรียนผู้ว่าราชการจังหวัด ตำแหน่งเกษตรอำเภอ รายชื่อตำบลทั้งหมด และจุดเริ่มต้น DOH ให้อัตโนมัติ</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="window.detectAreaFromGeo && window.detectAreaFromGeo({provSelId:'ca-province',ampSelId:'ca-amphoe',tamSelId:'ca-tambon',statusElId:'ca-geo-status',applyImmediately:true,onAfterTambon:function(p,a,tList){var oEl=document.getElementById('ca-office');if(oEl){oEl.value=(p==='กรุงเทพมหานคร'?'สำนักงานเกษตรเขต':'สำนักงานเกษตรอำเภอ')+a;oEl.dataset.manual='';}var ts=document.getElementById('ca-tambons');if(ts)ts.value=tList.map(function(t){return t.name;}).join(', ');}})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm">📍 จับพิกัด Wi-Fi / GPS วิ่งไปอำเภอนี้ทันที</button>
+                <span id="ca-geo-status" class="text-[11px] text-slate-600"></span>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label for="ca-province" class="block font-semibold text-slate-700 mb-1">จังหวัด (77 จังหวัด) <span class="text-rose-600">*</span></label>

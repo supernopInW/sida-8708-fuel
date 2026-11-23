@@ -2767,6 +2767,10 @@
           <label for="gate-other-tambon" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;">ตำบล / แขวง ที่ตั้งสำนักงาน</label>
           <select id="gate-other-tambon" style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none;background:#ffffff;color:#0f172a;"></select>
         </div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+          <button type="button" onclick="window.detectAreaFromGeo && window.detectAreaFromGeo({provSelId:'gate-other-province',ampSelId:'gate-other-amphoe',tamSelId:'gate-other-tambon',statusElId:'gate-geo-status'})" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid #0284c7;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;cursor:pointer;">📍 จับพิกัด Wi-Fi / GPS เลือกอำเภอให้อัตโนมัติ</button>
+          <div id="gate-geo-status" style="font-size:11px;color:#64748b;text-align:center;min-height:14px;"></div>
+        </div>
       </div>
 
       <label id="gate-pass-label" for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน (สำนักงานเกษตรอำเภอสีดา)</label>
@@ -2835,6 +2839,15 @@
         var runFill = function(){
           if (typeof window.populateThAreaSelects === 'function') {
             window.populateThAreaSelects('gate-other-province', 'gate-other-amphoe', 'gate-other-tambon', initP, initA, initT);
+            if (!initA && !window.__gateGeoTried && typeof window.detectAreaFromGeo === 'function') {
+              window.__gateGeoTried = true;
+              window.detectAreaFromGeo({
+                provSelId: 'gate-other-province',
+                ampSelId: 'gate-other-amphoe',
+                tamSelId: 'gate-other-tambon',
+                statusElId: 'gate-geo-status'
+              });
+            }
             return true;
           }
           return false;
@@ -5052,7 +5065,11 @@ window.ORG = {
             <button type="button" onclick="closeCustomAreaModal()" class="text-white/80 hover:text-white font-bold px-2">✕</button>
         </div>
         <div class="p-4 space-y-3 text-xs text-slate-800">
-            <p class="leading-relaxed text-slate-600">กรอกชื่ออำเภอและจังหวัดของคุณ ระบบจะปรับชื่อสำนักงาน หัวเอกสาร เรียนผู้ว่าราชการจังหวัด ตำแหน่งเกษตรอำเภอ และจุดเริ่มต้นค้นหาระยะทาง DOH TO TRAVEL ให้อัตโนมัติ พร้อมจำค่าไว้ในเบราว์เซอร์นี้</p>
+            <p class="leading-relaxed text-slate-600">เลือกจังหวัด/อำเภอ/ตำบล หรือกดจับพิกัด Wi-Fi / GPS ระบบจะปรับชื่อสำนักงาน หัวเอกสาร เรียนผู้ว่าราชการจังหวัด ตำแหน่งเกษตรอำเภอ รายชื่อตำบลทั้งหมด และจุดเริ่มต้น DOH ให้อัตโนมัติ</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="window.detectAreaFromGeo && window.detectAreaFromGeo({provSelId:'ca-province',ampSelId:'ca-amphoe',tamSelId:'ca-tambon',statusElId:'ca-geo-status',applyImmediately:true,onAfterTambon:function(p,a,tList){var oEl=document.getElementById('ca-office');if(oEl){oEl.value=(p==='กรุงเทพมหานคร'?'สำนักงานเกษตรเขต':'สำนักงานเกษตรอำเภอ')+a;oEl.dataset.manual='';}var ts=document.getElementById('ca-tambons');if(ts)ts.value=tList.map(function(t){return t.name;}).join(', ');}})" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-sm">📍 จับพิกัด Wi-Fi / GPS วิ่งไปอำเภอนี้ทันที</button>
+                <span id="ca-geo-status" class="text-[11px] text-slate-600"></span>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label for="ca-province" class="block font-semibold text-slate-700 mb-1">จังหวัด (77 จังหวัด) <span class="text-rose-600">*</span></label>

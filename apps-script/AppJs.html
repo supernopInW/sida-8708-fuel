@@ -505,6 +505,153 @@ const ORG = window.ORG || {};
         rebuildDestRuntime();
     }
 
+    window.matchThAreaFromText = function (rawTexts) {
+        var data = (window.TH_AREA && window.TH_AREA.data) ? window.TH_AREA.data : {};
+        var joined = (Array.isArray(rawTexts) ? rawTexts : [rawTexts])
+            .filter(Boolean)
+            .map(function (s) { return String(s).trim(); })
+            .join(' | ');
+        if (!joined) return null;
+
+        var cleanJoined = joined.replace(/\s+/g, ' ');
+        var provs = Object.keys(data);
+        var foundProv = '';
+        // 1. Match province (prefer longer exact match)
+        provs.slice().sort(function (a, b) { return b.length - a.length; }).some(function (p) {
+            if (cleanJoined.indexOf('จังหวัด' + p) !== -1 || cleanJoined.indexOf('จ.' + p) !== -1 || cleanJoined.indexOf(p) !== -1) {
+                foundProv = p;
+                return true;
+            }
+            return false;
+        });
+        if (!foundProv) return null;
+
+        var amps = Object.keys(data[foundProv] || {});
+        var foundAmp = '';
+        // 2. Match amphoe/district inside province
+        amps.slice().sort(function (a, b) { return b.length - a.length; }).some(function (a) {
+            if (cleanJoined.indexOf('อำเภอ' + a) !== -1 || cleanJoined.indexOf('อ.' + a) !== -1 || cleanJoined.indexOf('เขต' + a) !== -1) {
+                foundAmp = a;
+                return true;
+            }
+            return false;
+        });
+        if (!foundAmp) {
+            amps.slice().sort(function (a, b) { return b.length - a.length; }).some(function (a) {
+                if (cleanJoined.indexOf(a) !== -1) {
+                    foundAmp = a;
+                    return true;
+                }
+                return false;
+            });
+        }
+        if (!foundAmp) foundAmp = amps[0] || '';
+
+        // 3. Match tambon/sub-district inside amphoe
+        var tList = listTambons(foundProv, foundAmp);
+        var foundTam = '';
+        tList.slice().sort(function (a, b) { return b.name.length - a.name.length; }).some(function (t) {
+            if (cleanJoined.indexOf('ตำบล' + t.name) !== -1 || cleanJoined.indexOf('ต.' + t.name) !== -1 || cleanJoined.indexOf('แขวง' + t.name) !== -1 || cleanJoined.indexOf(t.name) !== -1) {
+                foundTam = t.name;
+                return true;
+            }
+            return false;
+        });
+        if (!foundTam && tList.length) foundTam = tList[0].name;
+
+        return { province: foundProv, amphoe: foundAmp, tambon: foundTam };
+    };
+
+    window.detectAreaFromGeo = async function (opts) {
+        var o = opts || {};
+        var statusEl = o.statusElId ? document.getElementById(o.statusElId) : null;
+        var setStatus = function (msg, color) {
+            if (!statusEl) return;
+            statusEl.textContent = msg;
+            if (color) statusEl.style.color = color;
+        };
+
+        if (!/^https?:$/i.test(location.protocol || '')) {
+            setStatus('โหมดออฟไลน์ กรุณาเลือกจังหวัด/อำเภอจากรายการด้านบน', '#64748b');
+            return null;
+        }
+        if (!navigator.geolocation) {
+            setStatus('เบราว์เซอร์ไม่รองรับการจับพิกัด กรุณาเลือกจากรายการ', '#b45309');
+            return null;
+        }
+
+        setStatus('📍 กำลังจับพิกัด Wi-Fi / GPS ของคุณ...', '#0369a1');
+        var pos = null;
+        try {
+            pos = await new Promise(function (resolve, reject) {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                });
+            });
+        } catch (err) {
+            var reason = (err && err.code === 1) ? 'ไม่ได้อนุญาตเข้าถึงตำแหน่ง (เลือกจากรายการด้านบนได้)' : 'ไม่สามารถดึงพิกัดได้ในขณะนี้';
+            setStatus('⚠️ ' + reason, '#b45309');
+            return null;
+        }
+
+        var lat = pos.coords.latitude;
+        var lon = pos.coords.longitude;
+        setStatus('🗺️ กำลังแปลงพิกัดเป็น จังหวัด / อำเภอ / ตำบล...', '#0369a1');
+
+        var texts = [];
+        try {
+            var r1 = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon) + '&zoom=14&addressdetails=1&accept-language=th');
+            if (r1.ok) {
+                var j1 = await r1.json();
+                if (j1 && j1.address) {
+                    texts.push(j1.address.province, j1.address.state, j1.address.county, j1.address.city_district, j1.address.municipality, j1.address.suburb, j1.address.town, j1.address.village, j1.display_name);
+                }
+            }
+        } catch (e) { /* fallback below */ }
+
+        var matched = window.matchThAreaFromText(texts);
+        if (!matched) {
+            try {
+                var r2 = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + encodeURIComponent(lat) + '&longitude=' + encodeURIComponent(lon) + '&localityLanguage=th');
+                if (r2.ok) {
+                    var j2 = await r2.json();
+                    var adminNames = (j2 && j2.localityInfo && Array.isArray(j2.localityInfo.administrative))
+                        ? j2.localityInfo.administrative.map(function (x) { return x.name; })
+                        : [];
+                    texts = [j2.principalSubdivision, j2.city, j2.locality].concat(adminNames);
+                    matched = window.matchThAreaFromText(texts);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        if (!matched) {
+            setStatus('⚠️ พบพิกัด (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ') แต่ไม่พบอำเภอที่ตรงกัน กรุณาเลือกจากรายการ', '#b45309');
+            return null;
+        }
+
+        if (o.provSelId && o.ampSelId && o.tamSelId && typeof window.populateThAreaSelects === 'function') {
+            window.populateThAreaSelects(o.provSelId, o.ampSelId, o.tamSelId, matched.province, matched.amphoe, matched.tambon, o.onAfterTambon);
+        }
+        setStatus('✅ พบพิกัดของคุณ: ต.' + matched.tambon + ' อ.' + matched.amphoe + ' จ.' + matched.province, '#047857');
+
+        if (o.applyImmediately) {
+            var officePrefix = (matched.province === 'กรุงเทพมหานคร') ? 'สำนักงานเกษตรเขต' : 'สำนักงานเกษตรอำเภอ';
+            applyAreaSelection({
+                province: matched.province,
+                amphoe: matched.amphoe,
+                officeTambon: matched.tambon || matched.amphoe,
+                officeName: officePrefix + matched.amphoe,
+                tambons: listTambons(matched.province, matched.amphoe)
+            });
+            if (typeof showToast === 'function') {
+                showToast('📍 ย้ายพื้นที่ตามพิกัดเป็น ' + officePrefix + matched.amphoe + ' จ.' + matched.province + ' แล้ว');
+            }
+        }
+        return matched;
+    };
+
     window.populateThAreaSelects = function (provSelId, ampSelId, tamSelId, initProv, initAmp, initTam, onAfterTambon) {
         var data = (window.TH_AREA && window.TH_AREA.data) ? window.TH_AREA.data : {};
         var provs = Object.keys(data);
