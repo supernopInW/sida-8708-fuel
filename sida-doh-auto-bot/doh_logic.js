@@ -73,22 +73,46 @@
       lo >= SIDA_BOUNDS.minLon && lo <= SIDA_BOUNDS.maxLon;
   }
 
+  function getStopArea(stop) {
+    const s = stop || {};
+    const amphoe = String(s.amphoe || '').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
+    const province = String(s.province || '').replace(/^(จังหวัด|จ\.)\s*/g, '').trim();
+    const officeTambon = String(s.officeTambon || '').replace(/^(ตำบล|ต\.|แขวง)\s*/g, '').trim();
+    const officeName = String(s.officeName || '').trim();
+    // Backward compatibility: if amphoe/province omitted, infer Sida only when text mentions Sida or legacy Sida stop
+    if (!amphoe && !province) {
+      const text = normThai((s.fullAddress || '') + ' ' + (s.searchKeyword || '') + ' ' + (s.label || ''));
+      const isLegacySida = text.includes('สีดา') || text.includes('30430') || (s.tambon && s.tambon !== 'CUSTOM' && !s.amphoe);
+      return {
+        amphoe: isLegacySida ? 'สีดา' : '',
+        province: isLegacySida ? 'นครราชสีมา' : '',
+        officeTambon: isLegacySida ? 'สีดา' : '',
+        officeName: officeName || (isLegacySida ? 'สำนักงานเกษตรอำเภอสีดา' : ''),
+        isSida: isLegacySida
+      };
+    }
+    const isSida = (amphoe === 'สีดา' && (!province || province === 'นครราชสีมา'));
+    return {
+      amphoe: amphoe,
+      province: province,
+      officeTambon: officeTambon || amphoe,
+      officeName: officeName || (amphoe ? ('สำนักงานเกษตรอำเภอ' + amphoe) : ''),
+      isSida: isSida
+    };
+  }
+
   function isSidaOfficeStop(stop) {
     if (!stop) return false;
     if (stop.isOffice || stop.id === 'office' || stop.tambon === 'OFFICE') return true;
     const text = normThai((stop.label || '') + ' ' + (stop.searchKeyword || '') + ' ' + (stop.fullAddress || ''));
-    return text.includes('สำนักงานเกษตรอำเภอสีดา');
+    return text.includes('สำนักงานเกษตรอำเภอ');
   }
 
   function isSidaDistrictStop(stop) {
-    if (!stop) return false;
-    if (isSidaOfficeStop(stop)) return true;
-    if (stop.tambon && stop.tambon !== 'CUSTOM') return true;
-    const text = normThai((stop.fullAddress || '') + ' ' + (stop.searchKeyword || '') + ' ' + (stop.label || ''));
-    return text.includes('สีดา') || text.includes('30430');
+    return getStopArea(stop).isSida;
   }
 
-  /** สร้างชุดคำค้นแบบเรียงลำดับความแม่นยำสำหรับ map.doh.go.th */
+  /** สร้างชุดคำค้นแบบเรียงลำดับความแม่นยำสำหรับ map.doh.go.th (รองรับทุกอำเภอทั่วประเทศ) */
   function buildSearchQueries(stop) {
     const out = [];
     const pushUnique = function (q) {
@@ -96,10 +120,22 @@
       if (s && s.length >= 2 && out.indexOf(s) === -1) out.push(s);
     };
 
+    const area = getStopArea(stop);
+    const amphoe = area.amphoe;
+    const province = area.province;
+
     if (isSidaOfficeStop(stop)) {
-      pushUnique('สำนักงานเกษตรอำเภอสีดา');
-      pushUnique('กรมส่งเสริมการเกษตร สำนักงานเกษตรอำเภอสีดา');
-      pushUnique('เกษตรอำเภอสีดา นครราชสีมา');
+      const offName = area.officeName || String(stop.label || '').replace(/\s*\(กลับ\)\s*$/g, '').trim() || 'สำนักงานเกษตรอำเภอสีดา';
+      pushUnique(offName);
+      if (offName.indexOf('กรมส่งเสริมการเกษตร') === -1) {
+        pushUnique('กรมส่งเสริมการเกษตร ' + offName);
+      }
+      if (amphoe && province) {
+        pushUnique(offName + ' ' + province);
+        pushUnique('เกษตรอำเภอ' + amphoe + ' ' + province);
+      }
+      if (stop.searchKeyword) pushUnique(stop.searchKeyword);
+      if (stop.fullAddress) pushUnique(stop.fullAddress);
       return out;
     }
 
@@ -108,20 +144,32 @@
     const moo = stop.moo ? String(stop.moo).trim() : '';
 
     if (vName && tambon && tambon !== 'OFFICE' && tambon !== 'CUSTOM') {
-      pushUnique(vName + ' ' + tambon + ' สีดา');
-      if (moo) pushUnique(vName + ' หมู่ที่ ' + moo + ' ต.' + tambon + ' อ.สีดา');
-      pushUnique(vName + ' ต.' + tambon + ' อ.สีดา จ.นครราชสีมา');
-      pushUnique(vName + ' อ.สีดา จ.นครราชสีมา');
+      if (amphoe) pushUnique(vName + ' ' + tambon + ' ' + amphoe);
+      if (moo && amphoe) pushUnique(vName + ' หมู่ที่ ' + moo + ' ต.' + tambon + ' อ.' + amphoe);
+      if (amphoe && province) pushUnique(vName + ' ต.' + tambon + ' อ.' + amphoe + ' จ.' + province);
+      if (amphoe && province) pushUnique(vName + ' อ.' + amphoe + ' จ.' + province);
       pushUnique(vName);
+    } else if (tambon && tambon !== 'OFFICE' && tambon !== 'CUSTOM') {
+      if (moo && amphoe && province) pushUnique('หมู่ที่ ' + moo + ' ต.' + tambon + ' อ.' + amphoe + ' จ.' + province);
+      if (moo && amphoe) pushUnique('หมู่ ' + moo + ' ตำบล' + tambon + ' อำเภอ' + amphoe);
+      if (amphoe && province) pushUnique('ตำบล' + tambon + ' อำเภอ' + amphoe + ' จังหวัด' + province);
     }
 
     if (stop.searchKeyword) pushUnique(stop.searchKeyword);
     if (stop.fullAddress) pushUnique(stop.fullAddress);
-    if (stop.label) pushUnique(String(stop.label).replace(/\s*\(ม\.\d+\)\s*/g, '').replace(/\s*\(กลับ\)\s*/g, '').trim());
+    if (stop.label) {
+      const cleanLbl = String(stop.label).replace(/\s*\(ม\.\d+\)\s*/g, '').replace(/\s*\(กลับ\)\s*/g, '').trim();
+      if (cleanLbl) {
+        if (amphoe && province && cleanLbl.indexOf(amphoe) === -1) {
+          pushUnique(cleanLbl + ' อ.' + amphoe + ' จ.' + province);
+        }
+        pushUnique(cleanLbl);
+      }
+    }
     return out;
   }
 
-  /** คะแนนความตรงกันของผลค้นหา DOH กับจุดแวะที่ต้องการ */
+  /** คะแนนความตรงกันของผลค้นหา DOH กับจุดแวะที่ต้องการ (รองรับทุกอำเภอทั่วประเทศ) */
   function scoreSearchCandidate(item, stop) {
     if (!item) return -9999;
     const lat = Number(item.lat);
@@ -131,24 +179,37 @@
     const name = normThai(item.name || '');
     const addr = normThai(item.address || '');
     const combined = (name + ' ' + addr).trim();
+    const area = getStopArea(stop);
+    const expectAmphoe = normThai(area.amphoe);
+    const expectProvince = normThai(area.province);
+    const expectOfficeTambon = normThai(area.officeTambon);
+    const expectOfficeName = normThai(area.officeName);
     let score = 0;
 
     if (isSidaOfficeStop(stop)) {
-      if (combined.includes('สำนักงานเกษตรอำเภอสีดา')) score += 160;
-      else if (combined.includes('เกษตรอำเภอสีดา')) score += 110;
-      else if (combined.includes('สำนักงานเกษตร') && combined.includes('สีดา')) score += 90;
+      if (expectOfficeName && combined.includes(expectOfficeName)) score += 160;
+      else if (expectAmphoe && combined.includes('เกษตรอำเภอ' + expectAmphoe)) score += 110;
+      else if (expectAmphoe && combined.includes('สำนักงานเกษตร') && combined.includes(expectAmphoe)) score += 90;
+      else if (combined.includes('สำนักงานเกษตร')) score += 50;
+
       if (combined.includes('กรมส่งเสริมการเกษตร')) score += 55;
-      if (combined.includes('ต.สีดา') || combined.includes('ตำบลสีดา')) score += 35;
-      if (combined.includes('อ.สีดา') || combined.includes('อำเภอสีดา')) score += 45;
-      if (combined.includes('นครราชสีมา') || combined.includes('30430')) score += 25;
-      score += isInsideSidaBounds(lat, lon) ? 60 : -260;
+      if (expectOfficeTambon && (combined.includes('ต.' + expectOfficeTambon) || combined.includes('ตำบล' + expectOfficeTambon))) score += 35;
+      if (expectAmphoe && (combined.includes('อ.' + expectAmphoe) || combined.includes('อำเภอ' + expectAmphoe) || combined.includes('เขต' + expectAmphoe))) score += 55;
+      else if (expectAmphoe && combined.includes(expectAmphoe)) score += 25;
+      else if (expectAmphoe) score -= 90;
+
+      if (expectProvince && (combined.includes(expectProvince) || (area.isSida && combined.includes('30430')))) score += 35;
+      else if (expectProvince) score -= 70;
+
+      if (area.isSida) {
+        score += isInsideSidaBounds(lat, lon) ? 60 : -260;
+      }
       return score;
     }
 
     const vName = normThai(stop.villageName || '');
     const tambon = normThai(stop.tambon && stop.tambon !== 'CUSTOM' ? stop.tambon : '');
     const moo = stop.moo ? thaiDigitsToArabic(stop.moo).replace(/\D+/g, '') : '';
-    const expectSida = isSidaDistrictStop(stop);
 
     if (vName) {
       const bareV = vName.replace(/^บ้าน/, '').trim();
@@ -206,12 +267,19 @@
       }
     }
 
-    if (expectSida) {
-      if (addr.includes('อ.สีดา') || addr.includes('อำเภอสีดา')) score += 55;
-      else if (combined.includes('สีดา')) score += 25;
+    if (expectAmphoe) {
+      if (addr.includes('อ.' + expectAmphoe) || addr.includes('อำเภอ' + expectAmphoe) || addr.includes('เขต' + expectAmphoe)) score += 55;
+      else if (combined.includes(expectAmphoe)) score += 25;
       else score -= 80;
+    }
 
-      if (addr.includes('นครราชสีมา') || addr.includes('30430')) score += 30;
+    if (expectProvince) {
+      if (addr.includes(expectProvince) || (area.isSida && addr.includes('30430'))) score += 35;
+      else if (combined.includes(expectProvince)) score += 20;
+      else score -= 70;
+    }
+
+    if (area.isSida) {
       score += isInsideSidaBounds(lat, lon) ? 55 : -240;
     }
 

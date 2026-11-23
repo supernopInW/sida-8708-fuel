@@ -260,9 +260,10 @@ async function resolveAndRouteTripInDohTab(tabId, trip, opts, cacheSnapshot) {
       }
 
       async function searchDohPlace(stop) {
+        const areaTag = L.normThai((stop.province || '') + '|' + (stop.amphoe || '') + '|' + (stop.isOffice ? (stop.officeName || stop.label || '') : ''));
         const cacheKey = stop.id
-          ? ('id:' + stop.id)
-          : ('kw:' + L.normThai(stop.searchKeyword || stop.label || ''));
+          ? ('id:' + areaTag + ':' + stop.id)
+          : ('kw:' + areaTag + ':' + L.normThai(stop.searchKeyword || stop.label || ''));
         if (cacheKey && localCache[cacheKey] && isFinite(Number(localCache[cacheKey].lat))) {
           return { place: localCache[cacheKey], fromCache: true, confidence: 'high' };
         }
@@ -602,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.0.2', name: 'DOH Auto-Bot (แบบ 8708 อ.สีดา)' });
+    sendResponse({ ok: true, version: '1.1.0', name: 'DOH Auto-Bot (แบบ 8708 ทุกอำเภอ)' });
     return false;
   }
 

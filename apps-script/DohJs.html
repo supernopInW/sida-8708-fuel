@@ -393,48 +393,79 @@
      * แปลงข้อความ "สถานที่ดำเนินการ" เช่น "หมู่ 2, 4, 8 ตำบลหนองตาดใหญ่"
      * เป็น destOrder ตามลำดับที่ไป (ไม่เรียงเลขหมู่) และรายชื่อจุดค้นหาใน DOH TO TRAVEL
      */
+    function getActiveOrgConfig() {
+        const org = global.ORG || {};
+        const amphoeEl = typeof document !== 'undefined' ? document.getElementById('in-amphoe') : null;
+        const provEl = typeof document !== 'undefined' ? document.getElementById('in-province') : null;
+        const deptEl = typeof document !== 'undefined' ? document.getElementById('in-dept') : null;
+        const officeEl = typeof document !== 'undefined' ? document.getElementById('in-office') : null;
+        const amphoe = String((amphoeEl && amphoeEl.value) || org.amphoe || 'สีดา').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim() || 'สีดา';
+        const province = String((provEl && provEl.value) || org.province || 'นครราชสีมา').replace(/^(จังหวัด|จ\.)\s*/g, '').trim() || 'นครราชสีมา';
+        const officeTambon = String(org.officeTambon || amphoe).replace(/^(ตำบล|ต\.|แขวง)\s*/g, '').trim() || amphoe;
+        const officeName = String((deptEl && deptEl.value) || (officeEl && officeEl.value) || org.officeName || ('สำนักงานเกษตรอำเภอ' + amphoe)).trim() || ('สำนักงานเกษตรอำเภอ' + amphoe);
+        const isSida = (amphoe === 'สีดา' && province === 'นครราชสีมา');
+        const fullAddress = isSida
+            ? SIDA_VILLAGES_MAP.office.fullAddress
+            : ('กรมส่งเสริมการเกษตร ' + officeName + ' ต.' + officeTambon + ' อ.' + amphoe + ' จ.' + province);
+        return {
+            amphoe: amphoe,
+            province: province,
+            officeTambon: officeTambon,
+            officeName: officeName,
+            isSida: isSida,
+            fullAddress: fullAddress
+        };
+    }
+
     function resolveTvLocationRaw(locationRaw) {
         const raw = String(locationRaw || '').trim();
-        const originMeta = SIDA_VILLAGES_MAP.office;
+        const cfg = getActiveOrgConfig();
         const originStop = {
             role: 'origin',
             id: 'office',
-            label: 'สำนักงานเกษตรอำเภอสีดา',
-            searchKeyword: originMeta.searchKeyword,
-            fullAddress: originMeta.fullAddress
+            isOffice: true,
+            amphoe: cfg.amphoe,
+            province: cfg.province,
+            officeName: cfg.officeName,
+            label: cfg.officeName,
+            searchKeyword: cfg.officeName,
+            fullAddress: cfg.fullAddress
         };
 
-        if (!raw || /^สำนักงานเกษตรอำเภอ(สีดา)?$/.test(raw)) {
+        if (!raw || raw === cfg.officeName || /^สำนักงานเกษตรอำเภอ/.test(raw) && raw.indexOf('หมู่') === -1 && raw.indexOf('ตำบล') === -1 && raw.indexOf('ต.') === -1) {
             return {
                 isFieldTrip: false,
                 destOrder: [],
                 destText: raw || originStop.label,
                 customStops: [],
                 stops: [originStop],
-                routeSummary: 'ปฏิบัติงาน ณ สำนักงานเกษตรอำเภอสีดา'
+                routeSummary: 'ปฏิบัติงาน ณ ' + cfg.officeName
             };
         }
 
         const destOrder = [];
         const customStops = [];
         const middleStops = [];
-        const segmentRegex = /(?:หมู่ที่|หมู่|ม\.)\s*([\d,\sและ\-–]+?)\s*(?:ตำบล|ต\.)\s*([\u0E01-\u0E4E]+)(?:\s*(?:อำเภอ|อ\.)\s*([\u0E01-\u0E4E]+))?/g;
+        const segmentRegex = /(?:หมู่ที่|หมู่|ม\.)\s*([\d,\sและ\-–]+?)\s*(?:ตำบล|ต\.)\s*([\u0E01-\u0E4E]+)(?:\s*(?:อำเภอ|อ\.)\s*([\u0E01-\u0E4E]+))?(?:\s*(?:จังหวัด|จ\.)\s*([\u0E01-\u0E4E]+))?/g;
         let match;
 
         while ((match = segmentRegex.exec(raw)) !== null) {
             const mooPart = match[1];
             const tambon = String(match[2] || '').replace(/^ตำบล|^ต\./, '').trim();
-            const amphoe = match[3] ? match[3].trim() : 'สีดา';
+            const amphoe = match[3] ? match[3].trim() : cfg.amphoe;
+            const province = match[4] ? match[4].trim() : cfg.province;
             const mooNums = mooPart.match(/\d+/g) || [];
             mooNums.forEach(function (mooStr) {
                 const mooNum = parseInt(mooStr, 10);
                 const id = tambon + '-m' + mooNum;
-                const meta = SIDA_VILLAGES_MAP[id];
+                const meta = cfg.isSida ? SIDA_VILLAGES_MAP[id] : null;
                 if (meta && (!global.DEST_BY_ID || global.DEST_BY_ID[id])) {
                     if (destOrder.indexOf(id) < 0) destOrder.push(id);
                     middleStops.push({
                         role: 'waypoint',
                         id: id,
+                        amphoe: cfg.amphoe,
+                        province: cfg.province,
                         label: meta.villageName + ' (ม.' + mooNum + ')',
                         tambon: meta.tambon,
                         moo: mooNum,
@@ -445,11 +476,13 @@
                     const cs = {
                         role: 'waypoint',
                         id: '',
+                        amphoe: amphoe,
+                        province: province,
                         label: 'หมู่ ' + mooNum + ' ต.' + tambon,
                         tambon: tambon,
                         moo: mooNum,
-                        searchKeyword: 'หมู่ ' + mooNum + ' ต.' + tambon + ' อ.' + amphoe,
-                        fullAddress: 'หมู่ที่ ' + mooNum + ' ต.' + tambon + ' อ.' + amphoe + ' จ.นครราชสีมา'
+                        searchKeyword: 'หมู่ที่ ' + mooNum + ' ต.' + tambon + ' อ.' + amphoe + ' จ.' + province,
+                        fullAddress: 'หมู่ที่ ' + mooNum + ' ต.' + tambon + ' อ.' + amphoe + ' จ.' + province
                     };
                     customStops.push(cs);
                     middleStops.push(cs);
@@ -459,14 +492,17 @@
 
         // กรณีเป็นสถานที่นอกรูปแบบ "หมู่ ... ตำบล ..."
         if (!middleStops.length) {
+            const hasAreaHint = raw.indexOf('อำเภอ') !== -1 || raw.indexOf('อ.') !== -1 || raw.indexOf('จังหวัด') !== -1 || raw.indexOf('จ.') !== -1;
             const extStop = {
                 role: 'waypoint',
                 id: '',
+                amphoe: cfg.amphoe,
+                province: cfg.province,
                 label: raw,
                 tambon: '',
                 moo: '',
-                searchKeyword: raw,
-                fullAddress: raw
+                searchKeyword: hasAreaHint ? raw : (raw + ' อ.' + cfg.amphoe + ' จ.' + cfg.province),
+                fullAddress: hasAreaHint ? raw : (raw + ' อ.' + cfg.amphoe + ' จ.' + cfg.province)
             };
             customStops.push(extStop);
             middleStops.push(extStop);
@@ -475,18 +511,23 @@
         const returnStop = {
             role: 'return',
             id: 'office',
-            label: 'สำนักงานเกษตรอำเภอสีดา (กลับ)',
-            searchKeyword: originMeta.searchKeyword,
-            fullAddress: originMeta.fullAddress
+            isOffice: true,
+            amphoe: cfg.amphoe,
+            province: cfg.province,
+            officeName: cfg.officeName,
+            label: cfg.officeName + ' (กลับ)',
+            searchKeyword: cfg.officeName,
+            fullAddress: cfg.fullAddress
         };
 
         let destText = raw;
+        const dynamicSuffix = ' อำเภอ' + cfg.amphoe + ' จังหวัด' + cfg.province;
         if (destOrder.length && !customStops.length && typeof global.combineDestFromOrder === 'function') {
             destText = global.combineDestFromOrder(destOrder);
         } else if (destOrder.length && customStops.length && typeof global.combineDestFromOrder === 'function') {
             destText = global.combineDestFromOrder(destOrder) + ' และ ' + customStops.map(function (c) { return c.label; }).join(', ');
         } else if (raw.indexOf('อำเภอ') === -1 && raw.indexOf('จังหวัด') === -1 && raw !== originStop.label) {
-            destText = raw + (global.DEST_SUFFIX || ' อำเภอสีดา จังหวัดนครราชสีมา');
+            destText = raw + (global.DEST_SUFFIX || dynamicSuffix);
         }
 
         const allStops = [originStop].concat(middleStops).concat([returnStop]);
@@ -504,31 +545,39 @@
 
     /**
      * สร้างรายการจุดหยุดเรียงตามลำดับสำหรับแถว .travel-day-row:
-     * สนง.เกษตรอำเภอสีดา -> หมู่บ้านตามลำดับ -> สนง.เกษตรอำเภอสีดา
+     * สำนักงาน (จุดเริ่มต้น) -> หมู่บ้าน/สถานที่ตามลำดับ -> สำนักงาน (กลับ)
      */
     function buildStopsForRow(row) {
-        const originMeta = SIDA_VILLAGES_MAP.office;
+        const cfg = getActiveOrgConfig();
         const origin = {
             role: 'origin',
             id: 'office',
             isOffice: true,
             tambon: 'OFFICE',
-            moo: 1,
-            villageName: 'สำนักงานเกษตรอำเภอสีดา',
-            label: 'สำนักงานเกษตรอำเภอสีดา',
-            searchKeyword: originMeta.searchKeyword,
-            fullAddress: originMeta.fullAddress
+            moo: cfg.isSida ? 1 : '',
+            amphoe: cfg.amphoe,
+            province: cfg.province,
+            officeName: cfg.officeName,
+            officeTambon: cfg.officeTambon,
+            villageName: cfg.officeName,
+            label: cfg.officeName,
+            searchKeyword: cfg.officeName,
+            fullAddress: cfg.fullAddress
         };
         const ret = {
             role: 'return',
             id: 'office',
             isOffice: true,
             tambon: 'OFFICE',
-            moo: 1,
-            villageName: 'สำนักงานเกษตรอำเภอสีดา',
-            label: 'สำนักงานเกษตรอำเภอสีดา (กลับ)',
-            searchKeyword: originMeta.searchKeyword,
-            fullAddress: originMeta.fullAddress
+            moo: cfg.isSida ? 1 : '',
+            amphoe: cfg.amphoe,
+            province: cfg.province,
+            officeName: cfg.officeName,
+            officeTambon: cfg.officeTambon,
+            villageName: cfg.officeName,
+            label: cfg.officeName + ' (กลับ)',
+            searchKeyword: cfg.officeName,
+            fullAddress: cfg.fullAddress
         };
 
         let order = typeof global.getRowDestOrder === 'function' ? global.getRowDestOrder(row) : [];
@@ -549,12 +598,14 @@
         const mids = [];
         order.forEach(function (id) {
             if (id === 'office') return;
-            const meta = SIDA_VILLAGES_MAP[id];
+            const meta = cfg.isSida ? SIDA_VILLAGES_MAP[id] : null;
             if (meta) {
                 mids.push({
                     role: 'waypoint',
                     id: id,
                     isOffice: false,
+                    amphoe: cfg.amphoe,
+                    province: cfg.province,
                     tambon: meta.tambon,
                     moo: meta.moo,
                     villageName: meta.villageName,
@@ -564,15 +615,18 @@
                 });
             } else if (global.DEST_BY_ID && global.DEST_BY_ID[id]) {
                 const p = global.DEST_BY_ID[id];
+                const mParts = String(id).match(/^(.+)-m(\d+)$/);
                 mids.push({
                     role: 'waypoint',
                     id: id,
                     isOffice: false,
-                    tambon: 'CUSTOM',
-                    moo: '',
+                    amphoe: cfg.amphoe,
+                    province: cfg.province,
+                    tambon: mParts ? mParts[1] : 'CUSTOM',
+                    moo: mParts ? parseInt(mParts[2], 10) : '',
                     villageName: '',
                     label: p.short,
-                    searchKeyword: p.short + ' อำเภอสีดา',
+                    searchKeyword: p.short + ' อ.' + cfg.amphoe + ' จ.' + cfg.province,
                     fullAddress: p.full
                 });
             }
@@ -583,28 +637,34 @@
                 role: 'waypoint',
                 id: '',
                 isOffice: false,
-                tambon: 'CUSTOM',
-                moo: '',
-                villageName: '',
+                amphoe: cs.amphoe || cfg.amphoe,
+                province: cs.province || cfg.province,
+                tambon: cs.tambon || 'CUSTOM',
+                moo: cs.moo || '',
+                villageName: cs.villageName || '',
                 label: cs.label,
                 searchKeyword: cs.searchKeyword || cs.label,
                 fullAddress: cs.fullAddress || cs.label
             });
         });
 
-        // ถ้าพิมพ์ปลายทางเองแล้วยังไม่แมตช์กับ 50 หมู่บ้าน ให้แสดงจุดพิมพ์เองตรงกลาง
-        if (!mids.length && destVal && !/^สำนักงานเกษตรอำเภอ(สีดา)?$/.test(destVal)) {
-            const cleanDest = destVal.replace(/\s*อำเภอสีดา\s*จังหวัดนครราชสีมา\s*$/g, '').trim();
+        // ถ้าพิมพ์ปลายทางเองแล้วยังไม่แมตช์ ให้แสดงจุดพิมพ์เองตรงกลางพร้อมระบุอำเภอ/จังหวัดปัจจุบัน
+        if (!mids.length && destVal && destVal !== cfg.officeName && !(/^สำนักงานเกษตรอำเภอ/.test(destVal) && destVal.indexOf('หมู่') === -1 && destVal.indexOf('ตำบล') === -1 && destVal.indexOf('ต.') === -1)) {
+            const suffixRe = new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g');
+            const cleanDest = destVal.replace(suffixRe, '').trim();
             if (cleanDest) {
+                const hasAreaHint = cleanDest.indexOf('อำเภอ') !== -1 || cleanDest.indexOf('อ.') !== -1 || cleanDest.indexOf('จังหวัด') !== -1 || cleanDest.indexOf('จ.') !== -1;
                 mids.push({
                     role: 'waypoint',
                     id: '',
                     isOffice: false,
+                    amphoe: cfg.amphoe,
+                    province: cfg.province,
                     tambon: 'CUSTOM',
                     moo: '',
                     villageName: '',
                     label: cleanDest,
-                    searchKeyword: cleanDest + ' สีดา',
+                    searchKeyword: hasAreaHint ? cleanDest : (cleanDest + ' อ.' + cfg.amphoe + ' จ.' + cfg.province),
                     fullAddress: destVal
                 });
             }
@@ -1340,9 +1400,17 @@
         }
     }
 
+    function refreshAllRows() {
+        document.querySelectorAll('.travel-day-row').forEach(function (row) {
+            renderRowDohStops(row);
+        });
+    }
+
     global.__tvDoh = {
         SIDA_VILLAGES_MAP: SIDA_VILLAGES_MAP,
         getSidaVillageMeta: getSidaVillageMeta,
+        getActiveOrgConfig: getActiveOrgConfig,
+        refreshAllRows: refreshAllRows,
         floorKm: floorKm,
         parseThaiDateCell: parseThaiDateCell,
         parseDocxPlanArrayBuffer: parseDocxPlanArrayBuffer,
@@ -1732,6 +1800,10 @@
                     id: st.id || '',
                     role: st.role || '',
                     isOffice: !!st.isOffice,
+                    amphoe: st.amphoe || '',
+                    province: st.province || '',
+                    officeName: st.officeName || '',
+                    officeTambon: st.officeTambon || '',
                     tambon: st.tambon || '',
                     moo: st.moo || '',
                     villageName: st.villageName || '',

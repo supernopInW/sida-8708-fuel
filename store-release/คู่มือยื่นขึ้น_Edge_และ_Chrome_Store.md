@@ -1,7 +1,7 @@
 # คู่มือยื่นส่วนเสริม DOH Auto-Bot ขึ้น Store (กดติดตั้ง 1 คลิก)
 
 ไฟล์ทั้งหมดที่ต้องใช้อยู่ในโฟลเดอร์ `store-release/` แล้ว:
-- **ไฟล์ส่วนเสริมสำหรับอัปโหลด:** `store-release/sida-doh-auto-bot-store-v1.0.6.zip` *(มี `manifest.json` อยู่ที่ root ตามกฎ Store และตัด `<all_urls>` ออกแล้ว)*
+- **ไฟล์ส่วนเสริมสำหรับอัปโหลด:** `store-release/sida-doh-auto-bot-store-v1.1.0.zip` *(มี `manifest.json` อยู่ที่ root ตามกฎ Store และตัด `<all_urls>` ออกแล้ว)*
 - **โลโก้สำหรับ Microsoft Edge Add-ons (300×300):** `store-release/store-logo-300x300.png`
 - **โลโก้สำหรับ Chrome Web Store (128×128):** `store-release/store-logo-128x128.png`
 - **ลิงก์ Privacy Policy (ออนไลน์พร้อมใช้):** `https://supernopinw.github.io/sida-8708-fuel/privacy.html`
@@ -14,7 +14,7 @@
 1. ไปที่ **Microsoft Partner Center:** https://partner.microsoft.com/dashboard/microsoftedge/public/login
 2. ลงชื่อเข้าใช้ด้วยบัญชี Microsoft (Outlook / Hotmail) → สมัครเป็นนักพัฒนา Microsoft Edge *(ฟรี ไม่ต้องใช้บัตรเครดิต)*
 3. กด **Create new extension**
-4. **หน้า Packages:** อัปโหลดไฟล์ `store-release/sida-doh-auto-bot-store-v1.0.6.zip`
+4. **หน้า Packages:** อัปโหลดไฟล์ `store-release/sida-doh-auto-bot-store-v1.1.0.zip`
 5. **หน้า Properties:**
    - **Category:** `Productivity`
    - **Privacy Policy URL:** `https://supernopinw.github.io/sida-8708-fuel/privacy.html`
@@ -33,7 +33,7 @@
 
 1. ไปที่ **Chrome Web Store Developer Dashboard:** https://chrome.google.com/webstore/devconsole
 2. ลงชื่อเข้าใช้ด้วยบัญชี Google → ชำระค่าลงทะเบียนครั้งเดียว \$5
-3. กด **New Item** → อัปโหลดไฟล์ `store-release/sida-doh-auto-bot-store-v1.0.6.zip`
+3. กด **New Item** → อัปโหลดไฟล์ `store-release/sida-doh-auto-bot-store-v1.1.0.zip`
 4. กรอก **Store listing** (Logo 128×128, Screenshot 1280×800, Description)
 5. กรอกแท็บ **Privacy practices** ด้วยข้อความ Permission Justifications ด้านล่าง และใส่ Privacy Policy URL: `https://supernopinw.github.io/sida-8708-fuel/privacy.html`
 6. เลือก **Visibility:** `Unlisted` (เฉพาะคนที่มีลิงก์ติดตั้งได้) หรือ `Public` → กด **Submit for review**

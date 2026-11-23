@@ -341,26 +341,255 @@ const ORG = window.ORG || {};
         ORG.budgetPrefix = 'budget_profile_' + slug + '_v1:';
     }
 
-    function applyAreaSelection() {
-        // ล็อกเฉพาะอำเภอสีดา จังหวัดนครราชสีมา
-        ORG.province = 'นครราชสีมา';
-        ORG.amphoe = 'สีดา';
-        ORG.officeTambon = 'สีดา';
-        if (!Array.isArray(ORG.tambons) || !ORG.tambons.length) {
-            ORG.tambons = listTambons('นครราชสีมา', 'สีดา');
+    var CUSTOM_AREA_STORAGE_KEY = 'form8708_custom_area_v1';
+    var DEFAULT_SIDA_BOSS = 'นางอรอนงค์ สูญกลาง';
+    var DEFAULT_SIDA_CHECKER = 'นางสาวหนึ่งนภา ปัจจัยโย';
+
+    function slugifyAreaId(province, amphoe) {
+        if (province === 'นครราชสีมา' && amphoe === 'สีดา') return 'sida';
+        var raw = (String(province || '') + '_' + String(amphoe || '')).trim();
+        var hash = 0;
+        for (var i = 0; i < raw.length; i++) {
+            hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
         }
-        ORG.id = 'sida';
+        return 'area_' + Math.abs(hash).toString(36);
+    }
+
+    function parseCustomTambonsInput(text) {
+        return String(text || '')
+            .split(/[,\n、;]+/)
+            .map(function (s) { return s.replace(/^(ตำบล|ต\.)\s*/g, '').trim(); })
+            .filter(Boolean)
+            .map(function (name) { return { name: name, mooCount: 15 }; });
+    }
+
+    function applyAreaSelection(customArea, opts) {
+        var o = opts || {};
+        var prevAmphoe = ORG.amphoe || 'สีดา';
+        var prevProvince = ORG.province || 'นครราชสีมา';
+        var prevOffice = ORG.officeName || '';
+        var prevToTitle = ORG.toTitle || '';
+        var prevBossTitle = ORG.bossTitle || '';
+        var prevVehicleFrom = ORG.vehicleFrom || '';
+        var prevDestArea = ORG.destinationArea || '';
+
+        if (customArea && typeof customArea === 'object') {
+            var prov = String(customArea.province || '').replace(/^(จังหวัด|จ\.)\s*/g, '').trim() || 'นครราชสีมา';
+            var amp = String(customArea.amphoe || '').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim() || 'สีดา';
+            var tam = String(customArea.officeTambon || '').replace(/^(ตำบล|ต\.|แขวง)\s*/g, '').trim() || amp;
+            var offName = String(customArea.officeName || '').trim() || ('สำนักงานเกษตรอำเภอ' + amp);
+            var isSida = (prov === 'นครราชสีมา' && amp === 'สีดา');
+
+            ORG.province = prov;
+            ORG.amphoe = amp;
+            ORG.officeTambon = tam;
+            ORG.officeName = offName;
+            ORG.toTitle = 'ผู้ว่าราชการจังหวัด' + prov;
+            ORG.bossTitle = 'เกษตรอำเภอ' + amp;
+            ORG.vehicleFrom = '';
+            ORG.id = slugifyAreaId(prov, amp);
+
+            if (Array.isArray(customArea.tambons) && customArea.tambons.length) {
+                ORG.tambons = normalizeTambonList(customArea.tambons);
+            } else if (isSida) {
+                ORG.tambons = listTambons('นครราชสีมา', 'สีดา');
+            } else {
+                var fromDict = listTambons(prov, amp);
+                ORG.tambons = fromDict.length ? fromDict : [];
+            }
+
+            if (isSida) {
+                if (!ORG.bossName) ORG.bossName = DEFAULT_SIDA_BOSS;
+                if (!ORG.checkerName) ORG.checkerName = DEFAULT_SIDA_CHECKER;
+            } else {
+                if (ORG.bossName === DEFAULT_SIDA_BOSS) ORG.bossName = '';
+                if (ORG.checkerName === DEFAULT_SIDA_CHECKER) ORG.checkerName = '';
+            }
+
+            if (!o.skipSave) {
+                try {
+                    __sidaLS.setItem(CUSTOM_AREA_STORAGE_KEY, JSON.stringify({
+                        province: ORG.province,
+                        amphoe: ORG.amphoe,
+                        officeTambon: ORG.officeTambon,
+                        officeName: ORG.officeName,
+                        tambons: ORG.tambons
+                    }));
+                } catch (e) { /* ignore */ }
+            }
+        } else {
+            if (!Array.isArray(ORG.tambons) || !ORG.tambons.length) {
+                if (ORG.province === 'นครราชสีมา' && ORG.amphoe === 'สีดา') {
+                    ORG.tambons = listTambons('นครราชสีมา', 'สีดา');
+                }
+            }
+        }
+
         finalizeOrgDerived();
         rebuildDestRuntime();
         applyOrgDefaultsToForm();
+
+        // อัปเดตช่องฟอร์มที่ยังเป็นค่าเก่าของอำเภอก่อนหน้าให้เปลี่ยนตามอัตโนมัติ
+        if (customArea && (prevAmphoe !== ORG.amphoe || prevProvince !== ORG.province || prevOffice !== ORG.officeName)) {
+            var forceSet = function (id, newVal, prevVal) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                var cur = (el.value || '').trim();
+                if (!cur || cur === prevVal || !prevVal) el.value = newVal;
+            };
+            var setAlways = function (id, newVal) {
+                var el = document.getElementById(id);
+                if (el) el.value = newVal;
+            };
+            setAlways('in-amphoe', ORG.amphoe);
+            setAlways('in-province', ORG.province);
+            setAlways('in-dept', ORG.officeName);
+            setAlways('in-office', ORG.officeName);
+            forceSet('in-to', ORG.toTitle, prevToTitle);
+            forceSet('in-boss-pos', ORG.bossTitle, prevBossTitle);
+            forceSet('in-vehicle-from', ORG.vehicleFrom || ORG.officeFull, prevVehicleFrom);
+            forceSet('in-destination', ORG.destinationArea, prevDestArea);
+            if (!(ORG.province === 'นครราชสีมา' && ORG.amphoe === 'สีดา')) {
+                var bn = document.getElementById('in-boss-name');
+                if (bn && bn.value.trim() === DEFAULT_SIDA_BOSS) bn.value = '';
+                var cn = document.getElementById('in-chk-name');
+                if (cn && cn.value.trim() === DEFAULT_SIDA_CHECKER) cn.value = '';
+            }
+        }
+
+        if (window.__tvDoh && typeof window.__tvDoh.refreshAllRows === 'function') {
+            window.__tvDoh.refreshAllRows();
+        }
         if (typeof updatePreview === 'function') updatePreview();
         return true;
     }
 
     function restoreAreaPickFromStorage() {
-        // เฉพาะอำเภอสีดา — ไม่โหลดพื้นที่อื่นจาก storage
+        try {
+            var raw = __sidaLS.getItem(CUSTOM_AREA_STORAGE_KEY);
+            if (raw) {
+                var saved = JSON.parse(raw);
+                if (saved && (saved.amphoe || saved.province)) {
+                    ORG.province = String(saved.province || 'นครราชสีมา').trim() || 'นครราชสีมา';
+                    ORG.amphoe = String(saved.amphoe || 'สีดา').trim() || 'สีดา';
+                    ORG.officeTambon = String(saved.officeTambon || ORG.amphoe).trim() || ORG.amphoe;
+                    ORG.officeName = String(saved.officeName || ('สำนักงานเกษตรอำเภอ' + ORG.amphoe)).trim();
+                    ORG.toTitle = 'ผู้ว่าราชการจังหวัด' + ORG.province;
+                    ORG.bossTitle = 'เกษตรอำเภอ' + ORG.amphoe;
+                    ORG.vehicleFrom = '';
+                    ORG.id = slugifyAreaId(ORG.province, ORG.amphoe);
+                    var isSida = (ORG.province === 'นครราชสีมา' && ORG.amphoe === 'สีดา');
+                    if (Array.isArray(saved.tambons) && saved.tambons.length) {
+                        ORG.tambons = normalizeTambonList(saved.tambons);
+                    } else if (isSida) {
+                        ORG.tambons = listTambons('นครราชสีมา', 'สีดา');
+                    } else {
+                        ORG.tambons = listTambons(ORG.province, ORG.amphoe);
+                    }
+                    if (!isSida) {
+                        if (ORG.bossName === DEFAULT_SIDA_BOSS) ORG.bossName = '';
+                        if (ORG.checkerName === DEFAULT_SIDA_CHECKER) ORG.checkerName = '';
+                    }
+                }
+            }
+        } catch (e) { /* ignore */ }
         finalizeOrgDerived();
+        rebuildDestRuntime();
     }
+
+    window.openCustomAreaModal = function () {
+        var modal = document.getElementById('custom-area-modal');
+        if (!modal) return;
+        var pEl = document.getElementById('ca-province');
+        var aEl = document.getElementById('ca-amphoe');
+        var tEl = document.getElementById('ca-tambon');
+        var oEl = document.getElementById('ca-office');
+        var tsEl = document.getElementById('ca-tambons');
+        if (pEl) pEl.value = document.getElementById('in-province')?.value.trim() || ORG.province || '';
+        if (aEl) aEl.value = document.getElementById('in-amphoe')?.value.trim() || ORG.amphoe || '';
+        if (tEl) tEl.value = ORG.officeTambon || '';
+        if (oEl) {
+            oEl.value = document.getElementById('in-dept')?.value.trim() || ORG.officeName || '';
+            oEl.dataset.manual = '';
+        }
+        if (tsEl) {
+            tsEl.value = (ORG.tambons || []).map(function (t) { return t.name; }).join(', ');
+        }
+        modal.hidden = false;
+        if (aEl) setTimeout(function () { aEl.focus(); }, 30);
+    };
+
+    window.closeCustomAreaModal = function () {
+        var modal = document.getElementById('custom-area-modal');
+        if (modal) modal.hidden = true;
+    };
+
+    window.syncCustomAreaOfficeAuto = function () {
+        var aEl = document.getElementById('ca-amphoe');
+        var oEl = document.getElementById('ca-office');
+        if (!aEl || !oEl || oEl.dataset.manual === '1') return;
+        var amp = aEl.value.replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
+        if (amp) oEl.value = 'สำนักงานเกษตรอำเภอ' + amp;
+    };
+
+    window.saveCustomAreaFromModal = function () {
+        var prov = (document.getElementById('ca-province')?.value || '').replace(/^(จังหวัด|จ\.)\s*/g, '').trim();
+        var amp = (document.getElementById('ca-amphoe')?.value || '').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
+        var tam = (document.getElementById('ca-tambon')?.value || '').replace(/^(ตำบล|ต\.|แขวง)\s*/g, '').trim();
+        var off = (document.getElementById('ca-office')?.value || '').trim();
+        var tambonsText = (document.getElementById('ca-tambons')?.value || '').trim();
+        if (!prov || !amp) {
+            if (typeof showToast === 'function') showToast('กรุณากรอกชื่อจังหวัดและอำเภอให้ครบครับ');
+            return;
+        }
+        var tambons = tambonsText ? parseCustomTambonsInput(tambonsText) : [];
+        applyAreaSelection({
+            province: prov,
+            amphoe: amp,
+            officeTambon: tam || amp,
+            officeName: off || ('สำนักงานเกษตรอำเภอ' + amp),
+            tambons: tambons
+        });
+        closeCustomAreaModal();
+        if (typeof showToast === 'function') {
+            showToast('เปลี่ยนพื้นที่เป็น ' + ORG.officeName + ' จ.' + ORG.province + ' เรียบร้อยแล้ว');
+        }
+    };
+
+    window.resetToSidaArea = function () {
+        try { __sidaLS.removeItem(CUSTOM_AREA_STORAGE_KEY); } catch (e) { /* ignore */ }
+        ORG.bossName = DEFAULT_SIDA_BOSS;
+        ORG.checkerName = DEFAULT_SIDA_CHECKER;
+        applyAreaSelection({
+            province: 'นครราชสีมา',
+            amphoe: 'สีดา',
+            officeTambon: 'สีดา',
+            officeName: 'สำนักงานเกษตรอำเภอสีดา',
+            tambons: listTambons('นครราชสีมา', 'สีดา')
+        }, { skipSave: true });
+        closeCustomAreaModal();
+        if (typeof showToast === 'function') {
+            showToast('รีเซ็ตกลับเป็นสำนักงานเกษตรอำเภอสีดา จ.นครราชสีมา แล้ว');
+        }
+    };
+
+    window.onDirectAreaInputChange = function () {
+        var prov = (document.getElementById('in-province')?.value || '').replace(/^(จังหวัด|จ\.)\s*/g, '').trim();
+        var amp = (document.getElementById('in-amphoe')?.value || '').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
+        var dept = (document.getElementById('in-dept')?.value || '').trim();
+        if (!prov && !amp) return;
+        var nextProv = prov || ORG.province || 'นครราชสีมา';
+        var nextAmp = amp || ORG.amphoe || 'สีดา';
+        var autoOffice = (dept && dept !== ('สำนักงานเกษตรอำเภอ' + ORG.amphoe)) ? dept : ('สำนักงานเกษตรอำเภอ' + nextAmp);
+        var isSida = (nextProv === 'นครราชสีมา' && nextAmp === 'สีดา');
+        applyAreaSelection({
+            province: nextProv,
+            amphoe: nextAmp,
+            officeTambon: isSida ? 'สีดา' : (ORG.amphoe === nextAmp ? ORG.officeTambon : nextAmp),
+            officeName: autoOffice,
+            tambons: isSida ? listTambons('นครราชสีมา', 'สีดา') : (ORG.amphoe === nextAmp ? ORG.tambons : [])
+        });
+    };
 
     /** Wizard ทั้งระบบ — เฉพาะอำเภอสีดา (7 ขั้นตอน เริ่มที่ผู้เบิก) */
     var FW_TOTAL = 7;
@@ -464,11 +693,14 @@ const ORG = window.ORG || {};
     function updateAreaPickStatusText() {
         var info = document.getElementById('area-pick-status');
         if (!info) return;
+        var tamInfo = DEST_TAMBONS.length
+            ? (' · ' + DEST_TAMBONS.length + ' ตำบล (' + DEST_TAMBONS.map(function (t) { return t.name; }).join(' · ') + ')')
+            : ' · โหมดพิมพ์ปลายทาง/นำเข้า .docx อิสระ';
         info.innerHTML = '<strong>พื้นที่สำนักงาน:</strong> ' + escHtml(DEFAULT_OFFICE) +
-            ' · ต.' + escHtml(ORG.officeTambon || 'สีดา') +
+            ' · ต.' + escHtml(ORG.officeTambon || ORG.amphoe || 'สีดา') +
             ' อ.' + escHtml(ORG.amphoe || 'สีดา') +
             ' จ.' + escHtml(ORG.province || 'นครราชสีมา') +
-            ' · ' + DEST_TAMBONS.length + ' ตำบล (ข้อมูลหมู่จากกรมการปกครอง)';
+            tamInfo;
     }
 
     function fillAreaPickerSelects() {
@@ -7962,7 +8194,7 @@ const ORG = window.ORG || {};
         if (typeof onPersonChange === 'function' && nameSel && nameSel.value) onPersonChange();
         // แบนเนอร์เตือนถ้ายังไม่ใส่ชื่ออำเภอ
         let ban = document.getElementById('org-setup-banner');
-        if (!O.amphoe || !DEST_TAMBONS.length) {
+        if (!O.amphoe) {
             if (!ban) {
                 ban = document.createElement('div');
                 ban.id = 'org-setup-banner';
@@ -7971,14 +8203,18 @@ const ORG = window.ORG || {};
                 if (header && header.parentNode) header.parentNode.insertBefore(ban, header.nextSibling);
                 else document.body.insertBefore(ban, document.body.firstChild);
             }
-            ban.innerHTML = '<b>ยังไม่ได้ตั้งค่าพื้นที่</b> — กรุณาตรวจสอบไฟล์ <code>ตั้งค่าอำเภอ.js</code>';
+            ban.innerHTML = '<b>ยังไม่ได้ตั้งค่าพื้นที่</b> — กดปุ่ม <b>🌐 เปลี่ยนอำเภอ/จังหวัด</b> ด้านบนเพื่อระบุพื้นที่ของคุณ';
         } else if (ban) {
             ban.remove();
         }
         const titleBit = O.amphoe ? ('อำเภอ' + O.amphoe) : 'อำเภอสีดา';
         document.title = 'แบบ 8708 — ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ / ' + titleBit;
         const label = document.getElementById('org-amphoe-label');
-        if (label) label.textContent = '(' + titleBit + ')';
+        if (label) label.textContent = '(' + titleBit + (O.province ? ' จ.' + O.province : '') + ')';
+        const sub = document.getElementById('org-subtitle');
+        if (sub) {
+            sub.textContent = 'โปรแกรมสร้างใบเบิกค่าเดินทาง 8708 ออนไลน์ ' + DEFAULT_OFFICE + ' จังหวัด' + (O.province || 'นครราชสีมา') + ' คำนวณเบี้ยเลี้ยง ค่าพาหนะ ค่าน้ำมัน พิมพ์และส่งออก PDF / Word';
+        }
         fillAreaPickerSelects();
     }
 

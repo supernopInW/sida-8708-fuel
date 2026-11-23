@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DOH Auto-Bot — ระบบเบิกค่าน้ำมัน 8708 อ.สีดา",
-  "version": "1.0.6",
-  "description": "ค้นหาระยะทางและแคปรูปแผนที่จาก DOH TO TRAVEL (dohgis.doh.go.th) อัตโนมัติ ส่งตรงเข้าแบบ 8708 + บก.111 สำนักงานเกษตรอำเภอสีดา",
+  "name": "DOH Auto-Bot — ระบบเบิกค่าน้ำมัน 8708 (ทุกอำเภอ)",
+  "version": "1.1.0",
+  "description": "ค้นหาระยะทางและแคปรูปแผนที่จาก DOH TO TRAVEL (dohgis.doh.go.th) อัตโนมัติ ส่งตรงเข้าแบบ 8708 + บก.111 รองรับทุกอำเภอทั่วประเทศ",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
