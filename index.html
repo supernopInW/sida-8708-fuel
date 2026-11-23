@@ -14332,10 +14332,10 @@ const ORG = window.ORG || {};
             let tDate = toThaiNum(date);
             let ttOut = toThaiNum(tOut);
             let ttIn = toThaiNum(tIn);
-            let ttSum = toThaiNum(tSum);
+            let ttSum = toThaiNum(String(tSum).replace(/^0(?=\d\.)/, ''));
             
             
-            previewDaysHTML += `<div class="p3-day-line">${tIndex}. วันที่ ${tDate} ออกเดินทางจาก${fromPlace} เวลา ${ttOut} น. กลับถึง${toPlace} เวลา ${ttIn} น. รวมเวลา ${ttSum} ชม.</div>`;
+            previewDaysHTML += `<div class="p3-day-line" style="font-size:14.5pt;line-height:1.22;margin:0;padding:0;white-space:nowrap;">${tIndex}. วันที่ ${tDate} ออกเดินทางจาก${fromPlace} เวลา ${ttOut} น. กลับถึง${toPlace} เวลา ${ttIn} น. รวมเวลา ${ttSum} ชม.</div>`;
         });
         if (previewDaysContainer) previewDaysContainer.innerHTML = previewDaysHTML;
 
@@ -15859,9 +15859,9 @@ const ORG = window.ORG || {};
             "<head><meta charset='utf-8'><title>Export HTML To Doc</title>" +
             "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->" +
             "<style>" +
-            /* บน 1.5cm=42.525pt · ล่าง 2cm=56.7pt · ขวา 1.5cm=42.525pt · ซ้าย 2.15cm=60.9075pt — กั้นพิมพ์ 17.35 ซม. */
-            "@page { size: 595.3pt 841.9pt; margin: 42.525pt 42.525pt 56.7pt 60.9075pt; mso-page-orientation: portrait; }" +
-            "@page WordSection1 { size: 595.3pt 841.9pt; margin: 42.525pt 42.525pt 56.7pt 60.9075pt; mso-header-margin: 15.6pt; mso-footer-margin: 56.7pt; mso-paper-source: 0; }" +
+            /* บน 1.2cm=34pt · ล่าง 1.2cm=34pt · ขวา 1.27cm=36pt · ซ้าย 1.59cm=45pt — พอดีหน้า 2 ไม่ล้นคำชี้แจง และหน้า 3 1 วัน = 1 บรรทัด */
+            "@page { size: 595.3pt 841.9pt; margin: 34pt 36pt 34pt 45pt; mso-page-orientation: portrait; }" +
+            "@page WordSection1 { size: 595.3pt 841.9pt; margin: 34pt 36pt 34pt 45pt; mso-header-margin: 14pt; mso-footer-margin: 34pt; mso-paper-source: 0; }" +
             "div.WordSection1 { page: WordSection1; }" +
             /* เนื้อหา 16pt / line-height:normal ให้ตรงพรีวิว — ไม่ใช้ line-height:1 exactly (ทำให้ขยับ) */
             "p, div, td, th, span, li, b { font-family: 'TH SarabunIT๙', 'TH SarabunPSK', 'TH Sarabun New', sans-serif !important; mso-ascii-font-family: 'TH SarabunIT๙' !important; mso-hansi-font-family: 'TH SarabunIT๙' !important; mso-bidi-font-family: 'TH SarabunIT๙' !important; font-size: 16pt; line-height: normal; margin: 0; padding: 0; }" +
@@ -15949,8 +15949,8 @@ const ORG = window.ORG || {};
             /* เส้นจุดเต็มความกว้างเนื้อหา — table-layout:fixed กัน Word หดตามข้อความ */
             ".f8708-w-dots { width:100% !important; max-width:100%; table-layout:fixed; border:none; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }" +
             ".f8708-w-dots col { width:100%; }" +
-            ".f8708-w-dots td { width:100%; border:none; border-bottom:1pt dotted #000; padding:0 0 2.5pt 0; height:21pt; line-height:16pt; vertical-align:bottom; mso-padding-alt:0pt 0pt 2.5pt 0pt; }" +
-            ".f8708-dot-row, .f8708-dot-row-right { display:block; width:100% !important; max-width:100%; box-sizing:border-box; height:21pt; line-height:16pt; border:none; border-bottom:1pt dotted #000; margin:0; padding:0 0 2.5pt 0; }" +
+            ".f8708-w-dots td { width:100%; border:none; border-bottom:1pt dotted #000; padding:0 0 1.5pt 0; height:18pt; line-height:14.5pt; vertical-align:bottom; mso-padding-alt:0pt 0pt 1.5pt 0pt; }" +
+            ".f8708-dot-row, .f8708-dot-row-right { display:block; width:100% !important; max-width:100%; box-sizing:border-box; height:18pt; line-height:14.5pt; border:none; border-bottom:1pt dotted #000; margin:0; padding:0 0 1.5pt 0; }" +
             ".f8708-dot-text { display:block; white-space:nowrap; line-height:16pt; margin:0; padding:0; }" +
             ".f8708-sig-box { display:inline-block; width:105mm; max-width:100%; text-align:center; line-height:16pt; margin:0; padding:0; }" +
             ".f8708-dot-fill { display:none !important; }" +
