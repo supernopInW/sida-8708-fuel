@@ -3881,7 +3881,7 @@ const ORG = window.ORG || {};
         const tDays = val('in-total-days');
         const daysTh = (typeof toThaiNum === 'function' ? toThaiNum(tDays) : tDays) || '....';
         return (
-            'เดินทางไปปฏิบัติราชการท้องที่ ของ' + name +
+            '๑. เดินทางไปปฏิบัติราชการท้องที่ ของ' + name +
             ' ตำแหน่ง ' + pos +
             ' ในระหว่างวันที่ ' + datesTh +
             ' รวม ' + daysTh +
@@ -4027,7 +4027,7 @@ const ORG = window.ORG || {};
         const tDays = val('in-total-days');
         const daysTh = (typeof toThaiNum === 'function' ? toThaiNum(tDays) : tDays) || '....';
         return {
-            note: `หมายเหตุ...เดินทางไปปฏิบัติราชการท้องที่ ของ${name} ตำแหน่ง ${pos} ในระหว่างวันที่ ${datesTh} รวม ${daysTh} วัน`,
+            note: `หมายเหตุ   ๑. เดินทางไปปฏิบัติราชการท้องที่ ของ${name} ตำแหน่ง ${pos} ในระหว่างวันที่ ${datesTh} รวม ${daysTh} วัน`,
             sig: '(ลงชื่อ).................................................ผู้ขอเบิก',
             nameLine: '(' + name + ')',
             posLine: 'ตำแหน่ง ' + pos
