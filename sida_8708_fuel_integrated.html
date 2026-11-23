@@ -3242,18 +3242,43 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <body class="h-screen overflow-hidden flex flex-col">
 <!-- หน้าล็อกรหัสผ่านก่อนเข้าใช้งาน -->
 <div id="site-passcode-gate" class="no-print" style="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;">
-  <div style="width:100%;max-width:390px;background:#ffffff;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45);overflow:hidden;border:1px solid #cbd5e1;">
-    <div style="background:linear-gradient(135deg,#0f766e,#065f46);color:#ffffff;padding:22px 24px;text-align:center;">
-      <div style="font-size:34px;line-height:1;margin-bottom:8px;">🔒</div>
+  <div style="width:100%;max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45);overflow:hidden;border:1px solid #cbd5e1;">
+    <div style="background:linear-gradient(135deg,#0f766e,#065f46);color:#ffffff;padding:20px 24px;text-align:center;">
+      <div style="font-size:32px;line-height:1;margin-bottom:6px;">🔒</div>
       <h2 style="margin:0;font-size:18px;font-weight:700;">ระบบเบิกค่าใช้จ่ายเดินทาง แบบ 8708</h2>
-      <p style="margin:6px 0 0;font-size:12px;opacity:0.9;">กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน (อ.สีดา / อำเภออื่นทั่วประเทศ)</p>
+      <p style="margin:5px 0 0;font-size:12px;opacity:0.9;">เลือกพื้นที่หน่วยงานและกรอกรหัสผ่านเพื่อเข้าใช้งาน</p>
     </div>
-    <form id="site-passcode-form" style="padding:22px 24px;" onsubmit="return window.__unlockSiteGate(event)">
-      <label for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน</label>
+
+    <!-- แท็บเลือก อ.สีดา / อำเภออื่น -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:16px 24px 0;">
+      <button type="button" id="gate-tab-sida" onclick="window.__selectGateMode('sida')" style="padding:10px 8px;border-radius:10px;border:2px solid #0f766e;background:#f0fdfa;color:#0f766e;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;">🏛️ อำเภอสีดา</button>
+      <button type="button" id="gate-tab-other" onclick="window.__selectGateMode('other')" style="padding:10px 8px;border-radius:10px;border:2px solid #cbd5e1;background:#ffffff;color:#475569;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">🌐 อำเภออื่นทั่วประเทศ</button>
+    </div>
+
+    <form id="site-passcode-form" style="padding:16px 24px 22px;" onsubmit="return window.__unlockSiteGate(event)">
+      <!-- ช่องกรอกจังหวัด/อำเภอ เฉพาะโหมดอำเภออื่น -->
+      <div id="gate-other-fields" style="display:none;margin-bottom:12px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid #cbd5e1;">
+        <div style="font-size:12px;font-weight:700;color:#0f766e;margin-bottom:8px;">📍 ระบุพื้นที่ของคุณ (จำไว้ในเครื่องให้อัตโนมัติ)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label for="gate-other-province" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;">จังหวัด</label>
+            <input id="gate-other-province" type="text" placeholder="เช่น นครราชสีมา" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none;background:#ffffff;color:#0f172a;" />
+          </div>
+          <div>
+            <label for="gate-other-amphoe" style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;">อำเภอ / เขต</label>
+            <input id="gate-other-amphoe" type="text" placeholder="เช่น ปักธงชัย" style="width:100%;box-sizing:border-box;padding:8px 10px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;outline:none;background:#ffffff;color:#0f172a;" />
+          </div>
+        </div>
+      </div>
+
+      <label id="gate-pass-label" for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน (สำนักงานเกษตรอำเภอสีดา)</label>
       <input id="site-passcode-input" type="password" inputmode="numeric" autocomplete="off" autofocus placeholder="กรอกรหัสผ่าน" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:18px;letter-spacing:4px;text-align:center;border:2px solid #cbd5e1;border-radius:10px;outline:none;color:#0f172a;background:#f8fafc;" />
       <div id="site-passcode-err" style="min-height:20px;margin-top:8px;font-size:12px;color:#dc2626;text-align:center;font-weight:600;"></div>
-      <button type="submit" style="width:100%;margin-top:8px;padding:11px 16px;border:none;border-radius:10px;background:#0f766e;color:#ffffff;font-size:15px;font-weight:700;cursor:pointer;">🔓 เข้าสู่ระบบ</button>
-      <div id="gate-visit-counter" style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;">👁️ ยอดเข้าใช้งานสะสม: <strong id="gate-visit-num">...</strong> ครั้ง</div>
+      <button type="submit" id="gate-submit-btn" style="width:100%;margin-top:8px;padding:11px 16px;border:none;border-radius:10px;background:#0f766e;color:#ffffff;font-size:15px;font-weight:700;cursor:pointer;">🔓 เข้าสู่ระบบ (อำเภอสีดา)</button>
+      <div id="gate-visit-counter" style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;">
+        👁️ ยอดเข้าใช้งานสะสม: <strong id="gate-visit-num">...</strong> ครั้ง
+        <span id="gate-visit-split" style="display:block;font-size:11px;color:#94a3b8;margin-top:2px;"></span>
+      </div>
     </form>
   </div>
 </div>
@@ -3266,6 +3291,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   var EXPECT_FNV_SIDA = '4152eae2';
   var EXPECT_SHA_OTHER = 'f6a53035272d6754570e054fc772716d67eea7b33af93c29e37401c1d4e4c09b';
   var EXPECT_FNV_OTHER = 'e4dcc9e5';
+  var selectedMode = 'sida';
+
   function hideGate(){
     var el = document.getElementById('site-passcode-gate');
     if (el) el.style.display = 'none';
@@ -3273,6 +3300,45 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
   try {
     if (sessionStorage.getItem(KEY) === '1') hideGate();
   } catch(e){}
+
+  window.__selectGateMode = function(mode){
+    selectedMode = (mode === 'other') ? 'other' : 'sida';
+    var tSida = document.getElementById('gate-tab-sida');
+    var tOther = document.getElementById('gate-tab-other');
+    var otherBox = document.getElementById('gate-other-fields');
+    var lbl = document.getElementById('gate-pass-label');
+    var btn = document.getElementById('gate-submit-btn');
+    var err = document.getElementById('site-passcode-err');
+    var inp = document.getElementById('site-passcode-input');
+    if (err) err.textContent = '';
+    if (inp) { inp.value = ''; inp.style.borderColor = '#cbd5e1'; }
+    if (selectedMode === 'sida') {
+      if (tSida) { tSida.style.borderColor = '#0f766e'; tSida.style.background = '#f0fdfa'; tSida.style.color = '#0f766e'; tSida.style.fontWeight = '700'; }
+      if (tOther) { tOther.style.borderColor = '#cbd5e1'; tOther.style.background = '#ffffff'; tOther.style.color = '#475569'; tOther.style.fontWeight = '600'; }
+      if (otherBox) otherBox.style.display = 'none';
+      if (lbl) lbl.textContent = 'รหัสผ่านเข้าใช้งาน (สำนักงานเกษตรอำเภอสีดา)';
+      if (btn) { btn.textContent = '🔓 เข้าสู่ระบบ (อำเภอสีดา)'; btn.style.background = '#0f766e'; }
+      if (inp) inp.focus();
+    } else {
+      if (tOther) { tOther.style.borderColor = '#0369a1'; tOther.style.background = '#f0f9ff'; tOther.style.color = '#0369a1'; tOther.style.fontWeight = '700'; }
+      if (tSida) { tSida.style.borderColor = '#cbd5e1'; tSida.style.background = '#ffffff'; tSida.style.color = '#475569'; tSida.style.fontWeight = '600'; }
+      if (otherBox) otherBox.style.display = 'block';
+      if (lbl) lbl.textContent = 'รหัสผ่านเข้าใช้งาน (สำหรับอำเภออื่นทั่วประเทศ)';
+      if (btn) { btn.textContent = '🔓 เข้าสู่ระบบ (อำเภออื่น)'; btn.style.background = '#0369a1'; }
+      // โหลดค่าจังหวัด/อำเภอที่เคยบันทึกไว้ (ถ้ามี)
+      try {
+        var saved = JSON.parse(localStorage.getItem('form8708_custom_area_v1') || 'null');
+        var pEl = document.getElementById('gate-other-province');
+        var aEl = document.getElementById('gate-other-amphoe');
+        if (saved && saved.amphoe && saved.amphoe !== 'สีดา') {
+          if (pEl && !pEl.value) pEl.value = saved.province || '';
+          if (aEl && !aEl.value) aEl.value = saved.amphoe || '';
+        }
+      } catch(e){}
+      if (inp) inp.focus();
+    }
+  };
+
   function fnv1a(str){
     var bytes = new TextEncoder().encode(str);
     var h = 0x811c9dc5;
@@ -3282,51 +3348,102 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     }
     return ('00000000' + h.toString(16)).slice(-8);
   }
-  async function checkPassRole(val){
+
+  async function verifyPassForMode(val, mode){
     var s = SALT + String(val || '').trim();
+    var targetSha = (mode === 'other') ? EXPECT_SHA_OTHER : EXPECT_SHA_SIDA;
+    var targetFnv = (mode === 'other') ? EXPECT_FNV_OTHER : EXPECT_FNV_SIDA;
     if (window.crypto && crypto.subtle){
       try {
         var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
         var hex = Array.from(new Uint8Array(buf)).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
-        if (hex === EXPECT_SHA_SIDA) return 'sida';
-        if (hex === EXPECT_SHA_OTHER) return 'other';
-        return null;
+        return hex === targetSha;
       } catch(e){}
     }
-    var f = fnv1a(s);
-    if (f === EXPECT_FNV_SIDA) return 'sida';
-    if (f === EXPECT_FNV_OTHER) return 'other';
-    return null;
+    return fnv1a(s) === targetFnv;
   }
+
   window.__unlockSiteGate = function(ev){
     if (ev && ev.preventDefault) ev.preventDefault();
     var inp = document.getElementById('site-passcode-input');
     var err = document.getElementById('site-passcode-err');
     var val = inp ? inp.value : '';
-    checkPassRole(val).then(function(role){
-      if (role){
+    verifyPassForMode(val, selectedMode).then(function(ok){
+      if (ok){
         try {
           sessionStorage.setItem(KEY, '1');
-          sessionStorage.setItem(ROLE_KEY, role);
+          sessionStorage.setItem(ROLE_KEY, selectedMode);
         } catch(e){}
-        hideGate();
-        if (window.__recordSiteVisit) window.__recordSiteVisit(role);
-        if (role === 'other') {
-          var hasSavedArea = false;
-          try { hasSavedArea = !!localStorage.getItem('form8708_custom_area_v1'); } catch(e){}
-          if (!hasSavedArea) {
+
+        if (selectedMode === 'sida') {
+          // เข้าโหมดอำเภอสีดา: ถ้าเคยตั้งอำเภออื่นค้างไว้ ให้สลับกลับสีดา
+          if (typeof window.resetToSidaArea === 'function') {
+            try {
+              var saved = JSON.parse(localStorage.getItem('form8708_custom_area_v1') || 'null');
+              if (saved && saved.amphoe && saved.amphoe !== 'สีดา') window.resetToSidaArea();
+            } catch(e){}
+          }
+        } else {
+          // เข้าโหมดอำเภออื่น: ถ้ากรอกจังหวัด+อำเภอมาแล้ว นำไปใช้ทันที ถ้ายังไม่กรอกให้เปิด Modal ตั้งค่า
+          var pVal = (document.getElementById('gate-other-province')?.value || '').replace(/^(จังหวัด|จ\.)\s*/g, '').trim();
+          var aVal = (document.getElementById('gate-other-amphoe')?.value || '').replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
+          if (pVal && aVal) {
+            try {
+              localStorage.setItem('form8708_custom_area_v1', JSON.stringify({
+                province: pVal,
+                amphoe: aVal,
+                officeTambon: aVal,
+                officeName: 'สำนักงานเกษตรอำเภอ' + aVal,
+                tambons: []
+              }));
+            } catch(e){}
             setTimeout(function(){
-              if (typeof window.openCustomAreaModal === 'function') window.openCustomAreaModal();
-            }, 250);
+              var caP = document.getElementById('ca-province');
+              var caA = document.getElementById('ca-amphoe');
+              var caT = document.getElementById('ca-tambon');
+              var caO = document.getElementById('ca-office');
+              if (caP) caP.value = pVal;
+              if (caA) caA.value = aVal;
+              if (caT) caT.value = aVal;
+              if (caO) caO.value = 'สำนักงานเกษตรอำเภอ' + aVal;
+              if (typeof window.saveCustomAreaFromModal === 'function') window.saveCustomAreaFromModal();
+            }, 150);
+          } else {
+            var hasSavedOther = false;
+            try {
+              var sv = JSON.parse(localStorage.getItem('form8708_custom_area_v1') || 'null');
+              hasSavedOther = !!(sv && sv.amphoe && sv.amphoe !== 'สีดา');
+            } catch(e){}
+            if (!hasSavedOther) {
+              setTimeout(function(){
+                if (typeof window.openCustomAreaModal === 'function') window.openCustomAreaModal();
+              }, 200);
+            }
           }
         }
+
+        hideGate();
+        if (window.__recordSiteVisit) window.__recordSiteVisit(selectedMode);
       } else {
-        if (err) err.textContent = 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
+        if (err) {
+          err.textContent = (selectedMode === 'other')
+            ? 'รหัสผ่านอำเภออื่นไม่ถูกต้อง กรุณาลองใหม่'
+            : 'รหัสผ่านอำเภอสีดาไม่ถูกต้อง กรุณาลองใหม่';
+        }
         if (inp) { inp.value = ''; inp.focus(); inp.style.borderColor = '#dc2626'; }
       }
     });
     return false;
   };
+
+  // ตั้งแท็บเริ่มต้นตามพื้นที่ที่เคยใช้ล่าสุด
+  try {
+    var savedInit = JSON.parse(localStorage.getItem('form8708_custom_area_v1') || 'null');
+    if (savedInit && savedInit.amphoe && savedInit.amphoe !== 'สีดา') {
+      window.__selectGateMode('other');
+    }
+  } catch(e){}
+
   setTimeout(function(){
     var inp = document.getElementById('site-passcode-input');
     if (inp && document.getElementById('site-passcode-gate')?.style.display !== 'none') inp.focus();
@@ -3359,9 +3476,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var formatted = Number(displayNum).toLocaleString('th-TH');
     var el1 = document.getElementById('site-visit-count');
     var el2 = document.getElementById('gate-visit-num');
+    var elSplit = document.getElementById('gate-visit-split');
     var badge = document.getElementById('site-visit-badge');
     if (el1) el1.textContent = formatted;
     if (el2) el2.textContent = formatted;
+    if (elSplit && (stats.sida != null || stats.other != null)) {
+      elSplit.textContent = 'อ.สีดา ' + Number(stats.sida || 0).toLocaleString('th-TH') + ' ครั้ง · อำเภออื่น ' + Number(stats.other || 0).toLocaleString('th-TH') + ' ครั้ง';
+    }
     if (badge) {
       var parts = ['ยอดเข้าใช้งานรวมทั้งหมด: ' + formatted + ' ครั้ง'];
       if (stats.sida != null) parts.push('อ.สีดา: ' + stats.sida + ' ครั้ง');
