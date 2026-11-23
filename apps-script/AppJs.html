@@ -506,7 +506,7 @@ const ORG = window.ORG || {};
     }
 
     window.populateThAreaSelects = function (provSelId, ampSelId, tamSelId, initProv, initAmp, initTam, onAfterTambon) {
-        var data = getThAreaData() || {};
+        var data = (window.TH_AREA && window.TH_AREA.data) ? window.TH_AREA.data : {};
         var provs = Object.keys(data);
         var pEl = document.getElementById(provSelId);
         var aEl = document.getElementById(ampSelId);
