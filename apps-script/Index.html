@@ -2770,7 +2770,7 @@
       </div>
 
       <label id="gate-pass-label" for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน (สำนักงานเกษตรอำเภอสีดา)</label>
-      <input id="site-passcode-input" type="password" inputmode="numeric" autocomplete="off" autofocus placeholder="กรอกรหัสผ่าน" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:18px;letter-spacing:4px;text-align:center;border:2px solid #cbd5e1;border-radius:10px;outline:none;color:#0f172a;background:#f8fafc;" />
+      <input id="site-passcode-input" type="password" inputmode="text" autocomplete="off" autofocus placeholder="กรอกรหัสผ่าน" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:18px;letter-spacing:4px;text-align:center;border:2px solid #cbd5e1;border-radius:10px;outline:none;color:#0f172a;background:#f8fafc;" />
       <div id="site-passcode-err" style="min-height:20px;margin-top:8px;font-size:12px;color:#dc2626;text-align:center;font-weight:600;"></div>
       <button type="submit" id="gate-submit-btn" style="width:100%;margin-top:8px;padding:11px 16px;border:none;border-radius:10px;background:#0f766e;color:#ffffff;font-size:15px;font-weight:700;cursor:pointer;">🔓 เข้าสู่ระบบ (อำเภอสีดา)</button>
       <div id="gate-visit-counter" style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;">
@@ -2789,6 +2789,8 @@
   var EXPECT_FNV_SIDA = '4152eae2';
   var EXPECT_SHA_OTHER = 'f6a53035272d6754570e054fc772716d67eea7b33af93c29e37401c1d4e4c09b';
   var EXPECT_FNV_OTHER = 'e4dcc9e5';
+  var EXPECT_SHA_OWNER = '6d9ec57e4a0faff8ca90b815742a1d6fc72cede16f8e944c3ecbbde422e7552c';
+  var EXPECT_FNV_OWNER = '9e4c019c';
   var selectedMode = 'sida';
 
   function hideGate(){
@@ -2864,23 +2866,54 @@
       try {
         var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
         var hex = Array.from(new Uint8Array(buf)).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
-        return hex === targetSha;
+        if (hex === EXPECT_SHA_OWNER) return 'owner';
+        if (hex === targetSha) return mode;
+        return null;
       } catch(e){}
     }
-    return fnv1a(s) === targetFnv;
+    var f = fnv1a(s);
+    if (f === EXPECT_FNV_OWNER) return 'owner';
+    if (f === targetFnv) return mode;
+    return null;
   }
+
+  function showOwnerBadge(){
+    var b = document.getElementById('site-owner-badge');
+    if (b) b.style.display = 'inline-flex';
+  }
+  window.__lockSiteGate = function(){
+    try {
+      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(ROLE_KEY);
+      sessionStorage.removeItem('form8708_visit_counted_v1');
+    } catch(e){}
+    var el = document.getElementById('site-passcode-gate');
+    var inp = document.getElementById('site-passcode-input');
+    var err = document.getElementById('site-passcode-err');
+    if (err) err.textContent = '';
+    if (inp) { inp.value = ''; inp.style.borderColor = '#cbd5e1'; }
+    if (el) el.style.display = 'flex';
+    if (inp) setTimeout(function(){ inp.focus(); }, 80);
+  };
+  try {
+    if (sessionStorage.getItem(ROLE_KEY) === 'owner') {
+      window.addEventListener('DOMContentLoaded', showOwnerBadge, { once: true });
+      setTimeout(showOwnerBadge, 100);
+    }
+  } catch(e){}
 
   window.__unlockSiteGate = function(ev){
     if (ev && ev.preventDefault) ev.preventDefault();
     var inp = document.getElementById('site-passcode-input');
     var err = document.getElementById('site-passcode-err');
     var val = inp ? inp.value : '';
-    verifyPassForMode(val, selectedMode).then(function(ok){
-      if (ok){
+    verifyPassForMode(val, selectedMode).then(function(authRole){
+      if (authRole){
         try {
           sessionStorage.setItem(KEY, '1');
-          sessionStorage.setItem(ROLE_KEY, selectedMode);
+          sessionStorage.setItem(ROLE_KEY, authRole);
         } catch(e){}
+        if (authRole === 'owner') showOwnerBadge();
 
         if (selectedMode === 'sida') {
           // เข้าโหมดอำเภอสีดา: ถ้าเคยตั้งอำเภออื่นค้างไว้ ให้สลับกลับสีดา
@@ -2932,7 +2965,10 @@
         }
 
         hideGate();
-        if (window.__recordSiteVisit) window.__recordSiteVisit(selectedMode);
+        if (authRole !== 'owner' && window.__recordSiteVisit) window.__recordSiteVisit(selectedMode);
+        else if (authRole === 'owner' && typeof window.showToast === 'function') {
+          window.showToast('👑 เข้าสู่ระบบในฐานะเจ้าของเว็บ (Admin) — ไม่นับเพิ่มในยอดผู้เข้าใช้งาน');
+        }
       } else {
         if (err) {
           err.textContent = (selectedMode === 'other')
@@ -3206,7 +3242,7 @@
 <header class="bg-white border-b border-slate-200 z-10 px-3 py-2.5 shrink-0 no-print">
     <div class="w-full flex flex-wrap justify-between items-center gap-2 px-1 sm:px-3">
         <div class="min-w-0 flex-1">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-800 truncate">แบบ 8708 — ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ + บก.111 <span id="org-amphoe-label" class="text-amber-800 font-semibold">(อำเภอสีดา)</span> <span id="site-visit-badge" class="no-print inline-flex items-center gap-1 align-middle ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer" title="สถิติการเข้าใช้งานระบบ" onclick="window.__showVisitStats?.()">👁️ <span id="site-visit-count">...</span> ครั้ง</span></h1>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-800 truncate">แบบ 8708 — ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ + บก.111 <span id="org-amphoe-label" class="text-amber-800 font-semibold">(อำเภอสีดา)</span> <span id="site-visit-badge" class="no-print inline-flex items-center gap-1 align-middle ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer" title="สถิติการเข้าใช้งานระบบ" onclick="window.__showVisitStats?.()">👁️ <span id="site-visit-count">...</span> ครั้ง</span><span id="site-owner-badge" class="no-print items-center gap-1 align-middle ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 cursor-pointer" style="display:none;" title="เจ้าของเว็บ (คลิกเพื่อล็อกหน้าจอ/สลับรหัส)" onclick="window.__lockSiteGate?.()">👑 Admin · 🔒</span></h1>
             <p id="org-subtitle" class="text-xs text-slate-500 hidden sm:block">โปรแกรมสร้างใบเบิกค่าเดินทาง 8708 ออนไลน์ สำนักงานเกษตรอำเภอสีดา จังหวัดนครราชสีมา คำนวณเบี้ยเลี้ยง ค่าพาหนะ ค่าน้ำมัน พิมพ์และส่งออก PDF / Word</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
