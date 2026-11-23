@@ -3240,6 +3240,77 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col">
+<!-- หน้าล็อกรหัสผ่านก่อนเข้าใช้งาน -->
+<div id="site-passcode-gate" class="no-print" style="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;">
+  <div style="width:100%;max-width:380px;background:#ffffff;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45);overflow:hidden;border:1px solid #cbd5e1;">
+    <div style="background:linear-gradient(135deg,#0f766e,#065f46);color:#ffffff;padding:22px 24px;text-align:center;">
+      <div style="font-size:34px;line-height:1;margin-bottom:8px;">🔒</div>
+      <h2 style="margin:0;font-size:18px;font-weight:700;">ระบบเบิกค่าใช้จ่ายเดินทาง แบบ 8708</h2>
+      <p style="margin:6px 0 0;font-size:12px;opacity:0.9;">กรุณากรอกรหัสผ่านเพื่อเข้าใช้งาน</p>
+    </div>
+    <form id="site-passcode-form" style="padding:22px 24px;" onsubmit="return window.__unlockSiteGate(event)">
+      <label for="site-passcode-input" style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:8px;">รหัสผ่านเข้าใช้งาน</label>
+      <input id="site-passcode-input" type="password" inputmode="numeric" autocomplete="off" autofocus placeholder="กรอกรหัสผ่าน" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:18px;letter-spacing:4px;text-align:center;border:2px solid #cbd5e1;border-radius:10px;outline:none;color:#0f172a;background:#f8fafc;" />
+      <div id="site-passcode-err" style="min-height:20px;margin-top:8px;font-size:12px;color:#dc2626;text-align:center;font-weight:600;"></div>
+      <button type="submit" style="width:100%;margin-top:8px;padding:11px 16px;border:none;border-radius:10px;background:#0f766e;color:#ffffff;font-size:15px;font-weight:700;cursor:pointer;">🔓 เข้าสู่ระบบ</button>
+    </form>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = 'form8708_gate_unlocked_v1';
+  var SALT = 'sida8708_gate_v1:';
+  var EXPECT_SHA = '0a89e3199aa084608c4541b251c4c615e80a901ca598cd86f2f559c7b6c3b6d3';
+  var EXPECT_FNV = '4152eae2';
+  function hideGate(){
+    var el = document.getElementById('site-passcode-gate');
+    if (el) el.style.display = 'none';
+  }
+  try {
+    if (sessionStorage.getItem(KEY) === '1') hideGate();
+  } catch(e){}
+  function fnv1a(str){
+    var bytes = new TextEncoder().encode(str);
+    var h = 0x811c9dc5;
+    for (var i = 0; i < bytes.length; i++){
+      h ^= bytes[i];
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ('00000000' + h.toString(16)).slice(-8);
+  }
+  async function checkPass(val){
+    var s = SALT + String(val || '').trim();
+    if (window.crypto && crypto.subtle){
+      try {
+        var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+        var hex = Array.from(new Uint8Array(buf)).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+        return hex === EXPECT_SHA;
+      } catch(e){}
+    }
+    return fnv1a(s) === EXPECT_FNV;
+  }
+  window.__unlockSiteGate = function(ev){
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var inp = document.getElementById('site-passcode-input');
+    var err = document.getElementById('site-passcode-err');
+    var val = inp ? inp.value : '';
+    checkPass(val).then(function(ok){
+      if (ok){
+        try { sessionStorage.setItem(KEY, '1'); } catch(e){}
+        hideGate();
+      } else {
+        if (err) err.textContent = 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
+        if (inp) { inp.value = ''; inp.focus(); inp.style.borderColor = '#dc2626'; }
+      }
+    });
+    return false;
+  };
+  setTimeout(function(){
+    var inp = document.getElementById('site-passcode-input');
+    if (inp && document.getElementById('site-passcode-gate')?.style.display !== 'none') inp.focus();
+  }, 120);
+})();
+</script>
 
 <!-- Wizard ทั้งระบบ — เฉพาะอำเภอสีดา (7 ขั้นตอน) -->
 <div id="area-wizard" class="area-wizard form-wizard is-form-step no-print" aria-modal="true" role="dialog" aria-labelledby="area-wizard-title" hidden>
