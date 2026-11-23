@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>DOH Auto-Bot</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 14px;
+      width: 310px;
+      font-family: 'Sarabun', 'Tahoma', sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      font-size: 13px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    }
+    .title {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f766e;
+      margin-bottom: 4px;
+    }
+    .sub {
+      font-size: 11px;
+      color: #475569;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+      margin-bottom: 10px;
+    }
+    .pill.busy {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fcd34d;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 6px 0;
+      border-top: 1px solid #e2e8f0;
+    }
+    .actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    button, a.btn {
+      flex: 1;
+      text-align: center;
+      text-decoration: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #fff;
+      color: #1e293b;
+    }
+    a.btn.primary {
+      background: #0f766e;
+      border-color: #0f766e;
+      color: #fff;
+    }
+    .tip {
+      margin-top: 10px;
+      font-size: 10.5px;
+      color: #64748b;
+      line-height: 1.45;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 7px;
+      padding: 7px 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title">🤖 DOH Auto-Bot (8708 อ.สีดา)</div>
+    <div class="sub">ค้นหาระยะทาง + แคปรูปแผนที่จาก <b>DOH TO TRAVEL</b> อัตโนมัติ ส่งเข้าตารางแบบ 8708</div>
+    <div id="status-pill" class="pill">● พร้อมใช้งาน</div>
+    <div class="row">
+      <span>พิกัดหมู่บ้านที่จำไว้แล้ว</span>
+      <b id="cache-count">0 จุด</b>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="https://dohgis.doh.go.th/dohtotravel/" target="_blank">เปิดเว็บ DOH ↗</a>
+      <button id="btn-clear-cache" type="button">ล้างแคชพิกัด</button>
+    </div>
+    <div class="tip">
+      💡 หากเปิดแบบ 8708 จากไฟล์ <b>.html ในเครื่อง (file://)</b> ให้เปิดสวิตช์
+      <b>"อนุญาตให้เข้าถึง URL ของไฟล์"</b> (Allow access to file URLs) ในหน้ารายละเอียดส่วนเสริมนี้ด้วยครับ
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
