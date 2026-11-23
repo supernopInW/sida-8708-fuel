@@ -3253,6 +3253,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       <input id="site-passcode-input" type="password" inputmode="numeric" autocomplete="off" autofocus placeholder="กรอกรหัสผ่าน" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:18px;letter-spacing:4px;text-align:center;border:2px solid #cbd5e1;border-radius:10px;outline:none;color:#0f172a;background:#f8fafc;" />
       <div id="site-passcode-err" style="min-height:20px;margin-top:8px;font-size:12px;color:#dc2626;text-align:center;font-weight:600;"></div>
       <button type="submit" style="width:100%;margin-top:8px;padding:11px 16px;border:none;border-radius:10px;background:#0f766e;color:#ffffff;font-size:15px;font-weight:700;cursor:pointer;">🔓 เข้าสู่ระบบ</button>
+      <div id="gate-visit-counter" style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;">👁️ ยอดเข้าใช้งานสะสม: <strong id="gate-visit-num">...</strong> ครั้ง</div>
     </form>
   </div>
 </div>
@@ -3298,6 +3299,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       if (ok){
         try { sessionStorage.setItem(KEY, '1'); } catch(e){}
         hideGate();
+        if (window.__recordSiteVisit) window.__recordSiteVisit();
       } else {
         if (err) err.textContent = 'รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
         if (inp) { inp.value = ''; inp.focus(); inp.style.borderColor = '#dc2626'; }
@@ -3309,6 +3311,91 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     var inp = document.getElementById('site-passcode-input');
     if (inp && document.getElementById('site-passcode-gate')?.style.display !== 'none') inp.focus();
   }, 120);
+})();
+</script>
+<script>
+(function(){
+  var LOCAL_KEY = 'form8708_usage_stats_v1';
+  var SESS_COUNTED = 'form8708_visit_counted_v1';
+  var IS_ONLINE = /^https?:$/i.test(location.protocol || '');
+  var API_BASE = 'https://abacus.jasoncameron.dev';
+  var NS = 'supernopinw-sida8708';
+  var CK = 'visits';
+  var lastGlobalCount = null;
+
+  function readLocal(){
+    try {
+      var raw = localStorage.getItem(LOCAL_KEY);
+      var obj = raw ? JSON.parse(raw) : null;
+      if (obj && typeof obj === 'object') return obj;
+    } catch(e){}
+    return { localCount: 0, lastAt: '', history: [] };
+  }
+  function writeLocal(obj){
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(obj)); } catch(e){}
+  }
+  function renderCounts(globalNum){
+    if (typeof globalNum === 'number' && isFinite(globalNum)) lastGlobalCount = globalNum;
+    var loc = readLocal();
+    var displayNum = (lastGlobalCount != null) ? lastGlobalCount : (loc.localCount || 0);
+    var formatted = Number(displayNum).toLocaleString('th-TH');
+    var el1 = document.getElementById('site-visit-count');
+    var el2 = document.getElementById('gate-visit-num');
+    var badge = document.getElementById('site-visit-badge');
+    if (el1) el1.textContent = formatted;
+    if (el2) el2.textContent = formatted;
+    if (badge) {
+      badge.title = 'ยอดเข้าใช้งานรวมทั้งหมด: ' + formatted + ' ครั้ง' +
+        (loc.localCount ? ' | เครื่องนี้: ' + loc.localCount + ' ครั้ง' : '') +
+        (loc.lastAt ? ' | ล่าสุด: ' + loc.lastAt : '');
+    }
+  }
+
+  async function fetchGlobal(mode){
+    if (!IS_ONLINE) { renderCounts(null); return; }
+    try {
+      var res = await fetch(API_BASE + '/' + mode + '/' + NS + '/' + CK, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      if (data && typeof data.value === 'number') {
+        renderCounts(data.value);
+        return;
+      }
+    } catch(e){}
+    renderCounts(null);
+  }
+
+  window.__recordSiteVisit = function(){
+    var already = false;
+    try { already = sessionStorage.getItem(SESS_COUNTED) === '1'; } catch(e){}
+    if (already) { fetchGlobal('get'); return; }
+    try { sessionStorage.setItem(SESS_COUNTED, '1'); } catch(e){}
+    var loc = readLocal();
+    var nowStr = new Date().toLocaleString('th-TH');
+    loc.localCount = (Number(loc.localCount) || 0) + 1;
+    loc.lastAt = nowStr;
+    loc.history = Array.isArray(loc.history) ? loc.history.slice(-29) : [];
+    loc.history.push(nowStr);
+    writeLocal(loc);
+    fetchGlobal('hit');
+  };
+
+  window.__showVisitStats = function(){
+    var loc = readLocal();
+    var gText = (lastGlobalCount != null) ? Number(lastGlobalCount).toLocaleString('th-TH') + ' ครั้ง' : 'โหมดออฟไลน์';
+    var msg = '📊 สถิติการเข้าใช้งานระบบ แบบ 8708\n' +
+      '• ยอดเข้าใช้งานรวมออนไลน์ทั้งหมด: ' + gText + '\n' +
+      '• เครื่องนี้เข้าใช้งานแล้ว: ' + (loc.localCount || 0) + ' ครั้ง' +
+      (loc.lastAt ? '\n• เข้าใช้งานล่าสุด: ' + loc.lastAt : '');
+    if (typeof window.showToast === 'function') {
+      window.showToast('ยอดเข้าใช้งานรวม: ' + gText + ' (เครื่องนี้ ' + (loc.localCount || 0) + ' ครั้ง)');
+    } else {
+      alert(msg);
+    }
+  };
+
+  // โหลดยอดปัจจุบันมาแสดงทันที (ไม่บวกเพิ่มจนกว่าจะกรอกรหัสผ่าน)
+  fetchGlobal('get');
 })();
 </script>
 
@@ -3450,7 +3537,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 <header class="bg-white border-b border-slate-200 z-10 px-3 py-2.5 shrink-0 no-print">
     <div class="w-full flex flex-wrap justify-between items-center gap-2 px-1 sm:px-3">
         <div class="min-w-0 flex-1">
-            <h1 class="text-lg sm:text-xl font-bold text-slate-800 truncate">แบบ 8708 — ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ + บก.111 <span id="org-amphoe-label" class="text-amber-800 font-semibold">(อำเภอสีดา)</span></h1>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-800 truncate">แบบ 8708 — ใบเบิกค่าใช้จ่ายในการเดินทางไปราชการ + บก.111 <span id="org-amphoe-label" class="text-amber-800 font-semibold">(อำเภอสีดา)</span> <span id="site-visit-badge" class="no-print inline-flex items-center gap-1 align-middle ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 cursor-pointer" title="สถิติการเข้าใช้งานระบบ" onclick="window.__showVisitStats?.()">👁️ <span id="site-visit-count">...</span> ครั้ง</span></h1>
             <p id="org-subtitle" class="text-xs text-slate-500 hidden sm:block">โปรแกรมสร้างใบเบิกค่าเดินทาง 8708 ออนไลน์ สำนักงานเกษตรอำเภอสีดา จังหวัดนครราชสีมา คำนวณเบี้ยเลี้ยง ค่าพาหนะ ค่าน้ำมัน พิมพ์และส่งออก PDF / Word</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
