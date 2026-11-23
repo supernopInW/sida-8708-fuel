@@ -14335,7 +14335,7 @@ const ORG = window.ORG || {};
             let ttSum = toThaiNum(String(tSum).replace(/^0(?=\d\.)/, ''));
             
             
-            previewDaysHTML += `<div class="p3-day-line" style="font-size:14.5pt;line-height:1.22;margin:0;padding:0;white-space:nowrap;">${tIndex}. วันที่ ${tDate} ออกเดินทางจาก${fromPlace} เวลา ${ttOut} น. กลับถึง${toPlace} เวลา ${ttIn} น. รวมเวลา ${ttSum} ชม.</div>`;
+            previewDaysHTML += `<div class="p3-day-line" style="font-size:16pt;line-height:1.22;margin:0;padding:0;white-space:nowrap;">${tIndex}. วันที่ ${tDate} ออกเดินทางจาก${fromPlace} เวลา ${ttOut} น. กลับถึง${toPlace} เวลา ${ttIn} น. รวมเวลา ${ttSum} ชม.</div>`;
         });
         if (previewDaysContainer) previewDaysContainer.innerHTML = previewDaysHTML;
 
@@ -15859,9 +15859,9 @@ const ORG = window.ORG || {};
             "<head><meta charset='utf-8'><title>Export HTML To Doc</title>" +
             "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->" +
             "<style>" +
-            /* บน 1.2cm=34pt · ล่าง 1.2cm=34pt · ขวา 1.27cm=36pt · ซ้าย 1.59cm=45pt — พอดีหน้า 2 ไม่ล้นคำชี้แจง และหน้า 3 1 วัน = 1 บรรทัด */
-            "@page { size: 595.3pt 841.9pt; margin: 34pt 36pt 34pt 45pt; mso-page-orientation: portrait; }" +
-            "@page WordSection1 { size: 595.3pt 841.9pt; margin: 34pt 36pt 34pt 45pt; mso-header-margin: 14pt; mso-footer-margin: 34pt; mso-paper-source: 0; }" +
+            /* บน 1.2cm=34pt · ล่าง 1.2cm=34pt · ขวา 1.0cm=28pt · ซ้าย 1.41cm=40pt — รองรับ TH SarabunIT๙ 16pt เต็มบรรทัด */
+            "@page { size: 595.3pt 841.9pt; margin: 34pt 28pt 34pt 40pt; mso-page-orientation: portrait; }" +
+            "@page WordSection1 { size: 595.3pt 841.9pt; margin: 34pt 28pt 34pt 40pt; mso-header-margin: 14pt; mso-footer-margin: 34pt; mso-paper-source: 0; }" +
             "div.WordSection1 { page: WordSection1; }" +
             /* เนื้อหา 16pt / line-height:normal ให้ตรงพรีวิว — ไม่ใช้ line-height:1 exactly (ทำให้ขยับ) */
             "p, div, td, th, span, li, b { font-family: 'TH SarabunIT๙', 'TH SarabunPSK', 'TH Sarabun New', sans-serif !important; mso-ascii-font-family: 'TH SarabunIT๙' !important; mso-hansi-font-family: 'TH SarabunIT๙' !important; mso-bidi-font-family: 'TH SarabunIT๙' !important; font-size: 16pt; line-height: normal; margin: 0; padding: 0; }" +
@@ -15923,7 +15923,7 @@ const ORG = window.ORG || {};
             ".page-box-8708-detail .p3-claim-table { margin:0 0 12px 0; text-align:left; border-collapse:collapse; font-size:16pt; }" +
             ".page-box-8708-detail .p3-grand { margin:0 0 20px 0; text-align:left; font-size:16pt; }" +
             ".page-box-8708-detail .p3-sign { line-height:1; font-size:16pt; }" +
-            ".page-box-8708-detail .p3-day-line { white-space:nowrap; letter-spacing:-0.2pt; margin:0; padding:0; font-size:14.5pt !important; line-height:1.25; }" +
+            ".page-box-8708-detail .p3-day-line { white-space:nowrap; margin:0; padding:0; font-size:16pt !important; line-height:1.22; }" +
             ".page-box-8708-detail .p3-cont-label { text-align:center; margin:0 0 8px 0; font-size:16pt; }" +
             ".f8708-meta { width:100%; margin-bottom:4px; border-collapse:collapse; }" +
             ".f8708-meta td { text-align:right; white-space:nowrap; vertical-align:top; font-size:16pt; }" +
