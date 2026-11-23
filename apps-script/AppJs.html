@@ -33,16 +33,24 @@ const ORG = window.ORG || {};
 
     function normalizeTambonList(list) {
         return (Array.isArray(list) ? list : []).map(function (t) {
+            if (typeof t === 'string') {
+                var sName = t.replace(/^(ตำบล|ต\.|แขวง)\s*/g, '').trim();
+                t = { name: sName, mooCount: DEFAULT_MOO_WHEN_UNKNOWN };
+            }
+            if (!t || !t.name) return null;
             var moos = mooNumbersForTambon(t);
             var mooCount = moos.length ? moos[moos.length - 1] : DEFAULT_MOO_WHEN_UNKNOWN;
             return { name: t.name, mooCount: mooCount, moos: moos };
-        }).filter(function (t) { return !!t.name; });
+        }).filter(function (t) { return !!(t && t.name); });
     }
 
     function buildDestPlaces() {
-        const tvMetaFn = window.__tvDoh && typeof window.__tvDoh.getSidaVillageMeta === 'function'
+        const isSida = (ORG.amphoe === 'สีดา' && ORG.province === 'นครราชสีมา');
+        const tvMetaFn = isSida && window.__tvDoh && typeof window.__tvDoh.getSidaVillageMeta === 'function'
             ? window.__tvDoh.getSidaVillageMeta
             : null;
+        const amp = ORG.amphoe || 'สีดา';
+        const prov = ORG.province || 'นครราชสีมา';
         const list = [];
         DEST_TAMBONS.forEach(function (t) {
             mooNumbersForTambon(t).forEach(function (m) {
@@ -56,12 +64,12 @@ const ORG = window.ORG || {};
                     label: 'ม.' + m,
                     full: 'หมู่ ' + m + ' ตำบล' + t.name + DEST_SUFFIX,
                     villageName: meta ? meta.villageName : ('หมู่ ' + m + ' ตำบล' + t.name),
-                    searchKeyword: meta ? meta.searchKeyword : ('หมู่ ' + m + ' ' + t.name + ' สีดา'),
+                    searchKeyword: meta ? meta.searchKeyword : ('หมู่ที่ ' + m + ' ต.' + t.name + ' อ.' + amp + ' จ.' + prov),
                     fullAddress: meta ? meta.fullAddress : ('หมู่ ' + m + ' ตำบล' + t.name + DEST_SUFFIX)
                 });
             });
         });
-        const officeMeta = tvMetaFn ? tvMetaFn('office') : null;
+        const officeMeta = isSida && tvMetaFn ? tvMetaFn('office') : null;
         list.push({
             id: 'office',
             tambon: OFFICE_TAMBON,
@@ -497,26 +505,96 @@ const ORG = window.ORG || {};
         rebuildDestRuntime();
     }
 
+    window.populateThAreaSelects = function (provSelId, ampSelId, tamSelId, initProv, initAmp, initTam, onAfterTambon) {
+        var data = getThAreaData() || {};
+        var provs = Object.keys(data);
+        var pEl = document.getElementById(provSelId);
+        var aEl = document.getElementById(ampSelId);
+        var tEl = document.getElementById(tamSelId);
+        if (!pEl || !aEl) return;
+
+        var fillTambons = function (prov, amp, targetTam) {
+            if (!tEl) {
+                if (typeof onAfterTambon === 'function') onAfterTambon(prov, amp, []);
+                return;
+            }
+            var tList = listTambons(prov, amp);
+            tEl.innerHTML = '';
+            if (!tList.length) {
+                var opt0 = document.createElement('option');
+                opt0.value = amp || '';
+                opt0.textContent = amp || '-- ไม่พบข้อมูลตำบล --';
+                tEl.appendChild(opt0);
+            } else {
+                tList.forEach(function (t) {
+                    var opt = document.createElement('option');
+                    opt.value = t.name;
+                    opt.textContent = t.name;
+                    if (targetTam && t.name === targetTam) opt.selected = true;
+                    tEl.appendChild(opt);
+                });
+            }
+            if (typeof onAfterTambon === 'function') onAfterTambon(prov, amp, tList);
+        };
+
+        var fillAmphoes = function (prov, targetAmp, targetTam) {
+            var amps = (data[prov] && typeof data[prov] === 'object') ? Object.keys(data[prov]) : [];
+            aEl.innerHTML = '';
+            amps.forEach(function (a) {
+                var opt = document.createElement('option');
+                opt.value = a;
+                opt.textContent = (prov === 'กรุงเทพมหานคร' ? 'เขต' : 'อำเภอ') + a;
+                if (targetAmp && a === targetAmp) opt.selected = true;
+                aEl.appendChild(opt);
+            });
+            var chosenAmp = aEl.value || amps[0] || '';
+            fillTambons(prov, chosenAmp, targetTam);
+        };
+
+        pEl.innerHTML = '';
+        provs.forEach(function (p) {
+            var opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            if (initProv && p === initProv) opt.selected = true;
+            pEl.appendChild(opt);
+        });
+        var chosenProv = pEl.value || provs[0] || 'นครราชสีมา';
+        fillAmphoes(chosenProv, initAmp, initTam);
+
+        pEl.onchange = function () {
+            fillAmphoes(pEl.value, '', '');
+        };
+        aEl.onchange = function () {
+            fillTambons(pEl.value, aEl.value, '');
+        };
+    };
+
     window.openCustomAreaModal = function () {
         var modal = document.getElementById('custom-area-modal');
         if (!modal) return;
-        var pEl = document.getElementById('ca-province');
-        var aEl = document.getElementById('ca-amphoe');
-        var tEl = document.getElementById('ca-tambon');
+        var curProv = document.getElementById('in-province')?.value.trim() || ORG.province || 'นครราชสีมา';
+        var curAmp = document.getElementById('in-amphoe')?.value.trim() || ORG.amphoe || 'สีดา';
+        var curTam = ORG.officeTambon || curAmp;
         var oEl = document.getElementById('ca-office');
         var tsEl = document.getElementById('ca-tambons');
-        if (pEl) pEl.value = document.getElementById('in-province')?.value.trim() || ORG.province || '';
-        if (aEl) aEl.value = document.getElementById('in-amphoe')?.value.trim() || ORG.amphoe || '';
-        if (tEl) tEl.value = ORG.officeTambon || '';
         if (oEl) {
-            oEl.value = document.getElementById('in-dept')?.value.trim() || ORG.officeName || '';
+            oEl.value = document.getElementById('in-dept')?.value.trim() || ORG.officeName || ('สำนักงานเกษตรอำเภอ' + curAmp);
             oEl.dataset.manual = '';
         }
-        if (tsEl) {
-            tsEl.value = (ORG.tambons || []).map(function (t) { return t.name; }).join(', ');
+        window.populateThAreaSelects('ca-province', 'ca-amphoe', 'ca-tambon', curProv, curAmp, curTam, function (prov, amp, tList) {
+            if (oEl && oEl.dataset.manual !== '1') {
+                oEl.value = (prov === 'กรุงเทพมหานคร' ? 'สำนักงานเกษตรเขต' : 'สำนักงานเกษตรอำเภอ') + amp;
+            }
+            if (tsEl) {
+                tsEl.value = tList.map(function (t) { return t.name; }).join(', ');
+            }
+        });
+        // คงรายชื่อตำบลปัจจุบันถ้าเป็นอำเภอเดิมและผู้ใช้เคยปรับแต่งไว้
+        if (tsEl && ORG.tambons && ORG.tambons.length && curProv === ORG.province && curAmp === ORG.amphoe) {
+            tsEl.value = ORG.tambons.map(function (t) { return t.name; }).join(', ');
         }
         modal.hidden = false;
-        if (aEl) setTimeout(function () { aEl.focus(); }, 30);
     };
 
     window.closeCustomAreaModal = function () {
@@ -525,11 +603,13 @@ const ORG = window.ORG || {};
     };
 
     window.syncCustomAreaOfficeAuto = function () {
+        var pEl = document.getElementById('ca-province');
         var aEl = document.getElementById('ca-amphoe');
         var oEl = document.getElementById('ca-office');
         if (!aEl || !oEl || oEl.dataset.manual === '1') return;
         var amp = aEl.value.replace(/^(อำเภอ|อ\.|เขต)\s*/g, '').trim();
-        if (amp) oEl.value = 'สำนักงานเกษตรอำเภอ' + amp;
+        var prov = pEl ? pEl.value.trim() : '';
+        if (amp) oEl.value = (prov === 'กรุงเทพมหานคร' ? 'สำนักงานเกษตรเขต' : 'สำนักงานเกษตรอำเภอ') + amp;
     };
 
     window.saveCustomAreaFromModal = function () {
@@ -539,20 +619,25 @@ const ORG = window.ORG || {};
         var off = (document.getElementById('ca-office')?.value || '').trim();
         var tambonsText = (document.getElementById('ca-tambons')?.value || '').trim();
         if (!prov || !amp) {
-            if (typeof showToast === 'function') showToast('กรุณากรอกชื่อจังหวัดและอำเภอให้ครบครับ');
+            if (typeof showToast === 'function') showToast('กรุณาเลือกจังหวัดและอำเภอให้ครบครับ');
             return;
         }
-        var tambons = tambonsText ? parseCustomTambonsInput(tambonsText) : [];
+        var tambons = tambonsText ? parseCustomTambonsInput(tambonsText) : listTambons(prov, amp);
+        // ถ้าเป็นอำเภอสีดาและรายชื่อตำบลครบ 5 ตำบล ให้คงจำนวนหมู่จริงจาก DOPA
+        if (prov === 'นครราชสีมา' && amp === 'สีดา') {
+            var sidaList = listTambons('นครราชสีมา', 'สีดา');
+            if (!tambonsText || tambons.length === sidaList.length) tambons = sidaList;
+        }
         applyAreaSelection({
             province: prov,
             amphoe: amp,
             officeTambon: tam || amp,
-            officeName: off || ('สำนักงานเกษตรอำเภอ' + amp),
+            officeName: off || ((prov === 'กรุงเทพมหานคร' ? 'สำนักงานเกษตรเขต' : 'สำนักงานเกษตรอำเภอ') + amp),
             tambons: tambons
         });
         closeCustomAreaModal();
         if (typeof showToast === 'function') {
-            showToast('เปลี่ยนพื้นที่เป็น ' + ORG.officeName + ' จ.' + ORG.province + ' เรียบร้อยแล้ว');
+            showToast('เปลี่ยนพื้นที่เป็น ' + ORG.officeName + ' จ.' + ORG.province + ' (' + ORG.tambons.length + ' ตำบล) เรียบร้อยแล้ว');
         }
     };
 
