@@ -8464,6 +8464,18 @@ const ORG = window.ORG || {};
         if (sub) {
             sub.textContent = 'โปรแกรมสร้างใบเบิกค่าเดินทาง 8708 ออนไลน์ ' + DEFAULT_OFFICE + ' จังหวัด' + (O.province || 'นครราชสีมา') + ' คำนวณเบี้ยเลี้ยง ค่าพาหนะ ค่าน้ำมัน พิมพ์และส่งออก PDF / Word';
         }
+        const awTitle = document.getElementById('area-wizard-title');
+        if (awTitle) awTitle.textContent = 'สร้างแบบ 8708 — ' + titleBit + (O.province ? (' จ.' + O.province) : '');
+        const awSub = document.getElementById('area-wizard-sub');
+        if (awSub) awSub.textContent = 'ทำใบเบิกค่าเดินทางออนไลน์สำหรับ' + DEFAULT_OFFICE + ' จ.' + (O.province || 'นครราชสีมา') + ' ทีละขั้นจนครบ แล้วกด「สร้างเอกสาร」';
+        const awHint = document.getElementById('aw-panel-1-hint');
+        if (awHint) awHint.textContent = 'เลือกหรือพิมพ์ชื่อผู้เบิก และตำแหน่งสังกัด (' + DEFAULT_OFFICE + ')';
+        const awAreaLi = document.getElementById('aw-panel-1-area-li');
+        if (awAreaLi) {
+            awAreaLi.innerHTML = 'พื้นที่ตั้งค่าไว้เป็น <b>' + escHtml(DEFAULT_OFFICE) + ' จ.' + escHtml(O.province || 'นครราชสีมา') + '</b>' +
+                (DEST_TAMBONS.length ? (' (ครบทั้ง ' + DEST_TAMBONS.length + ' ตำบล)') : '') +
+                ' เรียบร้อยแล้ว <button type="button" onclick="openCustomAreaModal()" class="ml-1 underline text-teal-800 font-semibold hover:text-teal-950">🌐 เปลี่ยนอำเภอ/จังหวัด</button>';
+        }
         fillAreaPickerSelects();
     }
 
