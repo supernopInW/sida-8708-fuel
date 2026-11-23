@@ -3392,6 +3392,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       sessionStorage.removeItem(KEY);
       sessionStorage.removeItem(ROLE_KEY);
       sessionStorage.removeItem('form8708_visit_counted_v1');
+      sessionStorage.setItem('form8708_manual_lock_v1', '1');
     } catch(e){}
     var el = document.getElementById('site-passcode-gate');
     var inp = document.getElementById('site-passcode-input');
@@ -3494,6 +3495,40 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
       window.__selectGateMode('other');
     }
   } catch(e){}
+
+  // ตรวจสอบเครือข่ายสำนักงาน (DOAE_WIFI) — หากอยู่ในวง Wi-Fi เดียวกัน ปลดล็อกอัตโนมัติไม่ต้องกรอกรหัส
+  (async function checkOfficeWifiAutoUnlock(){
+    if (!/^https?:$/i.test(location.protocol || '')) return;
+    try {
+      if (sessionStorage.getItem(KEY) === '1') return;
+      if (sessionStorage.getItem('form8708_manual_lock_v1') === '1') return;
+    } catch(e){}
+    try {
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var tmr = ctrl ? setTimeout(function(){ ctrl.abort(); }, 3000) : null;
+      var res = await fetch('https://api.ipify.org?format=json', { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+      if (tmr) clearTimeout(tmr);
+      if (!res.ok) return;
+      var d = await res.json();
+      var ip = String((d && d.ip) || '').trim();
+      if (!ip || !(window.crypto && crypto.subtle)) return;
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('sida8708_wifi_v1:' + ip));
+      var hex = Array.from(new Uint8Array(buf)).map(function(b){ return ('0' + b.toString(16)).slice(-2); }).join('');
+      if (hex === '7cfa3dbabcf406673679f84d61110b39df4f67ed599bd447a9176bdf180f4e1e') {
+        try {
+          sessionStorage.setItem(KEY, '1');
+          sessionStorage.setItem(ROLE_KEY, 'sida_wifi');
+        } catch(e){}
+        hideGate();
+        if (window.__recordSiteVisit) window.__recordSiteVisit('sida');
+        setTimeout(function(){
+          if (typeof window.showToast === 'function') {
+            window.showToast('📶 เชื่อมต่อผ่านเครือข่ายสำนักงาน (DOAE_WIFI) — เข้าใช้งานอัตโนมัติ');
+          }
+        }, 350);
+      }
+    } catch(e){}
+  })();
 
   setTimeout(function(){
     var inp = document.getElementById('site-passcode-input');
