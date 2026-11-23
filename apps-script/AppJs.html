@@ -5319,15 +5319,20 @@ const ORG = window.ORG || {};
 
         maps.innerHTML = mapHtml;
 
-        const claimFmt = claimFmtRaw;
-        const claimTextDisp = (claimAmt > 0 || vehBudgetZero) ? claimWordsDisp : '';
+        const coverPayAmt = showBg111Claim ? claimAmt : calcSum;
+        const coverPayFmt = coverPayAmt > 0 ? (formatMoney(coverPayAmt) || '') : '';
+        const coverPayTh = coverPayAmt > 0 ? (toThaiNum(coverPayFmt) || coverPayFmt) : '';
+        const coverPayWords = coverPayAmt > 0 ? (showBg111Claim ? claimWordsDisp : toThaiBahtText(coverPayAmt)) : '';
+
+        const claimFmt = coverPayFmt;
+        const claimTextDisp = coverPayWords;
         const calcTextDisp = calcSum > 0 ? calcText : '';
         document.querySelectorAll('.dyn-vehicle-claim').forEach(el => el.textContent = claimFmt);
         document.querySelectorAll('.dyn-vehicle-claim-text').forEach(el => el.textContent = claimTextDisp);
         document.querySelectorAll('.dyn-vehicle-calc-text').forEach(el => el.textContent = calcTextDisp);
 
-        // หน้างบ: เลขไทย — ค่าศูนย์ปกติไม่ใส่ ๐ (เว้นแต่ถูกจำกัดจากงบเหลือ 0)
-        const claimTh = (claimAmt > 0 || vehBudgetZero) ? (claimThAmt || '') : '';
+        // หน้างบ: เลขไทย — อิงวันที่และยอดเบิกน้ำมันจริง
+        const claimTh = coverPayTh;
         const daysTh = rows.length > 0 ? (toThaiNum(rows.length) || '') : '';
         document.querySelectorAll('.dyn-cover-claim').forEach(el => el.textContent = claimTh);
         document.querySelectorAll('.dyn-cover-claim-text').forEach(el => el.textContent = claimTextDisp);

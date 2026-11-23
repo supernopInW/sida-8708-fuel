@@ -432,7 +432,9 @@
             fullAddress: cfg.fullAddress
         };
 
-        if (!raw || raw === cfg.officeName || /^สำนักงานเกษตรอำเภอ/.test(raw) && raw.indexOf('หมู่') === -1 && raw.indexOf('ตำบล') === -1 && raw.indexOf('ต.') === -1) {
+        const isOfficeOnly = !raw || raw === cfg.officeName ||
+            (/^(สำนักงานเกษตรอำเภอ|สนง\.?\s*กษอ\.?|สนง\.?\s*เกษตร)/.test(raw) && raw.indexOf('หมู่') === -1 && raw.indexOf('ตำบล') === -1 && raw.indexOf('ต.') === -1);
+        if (isOfficeOnly) {
             return {
                 isFieldTrip: false,
                 destOrder: [],
