@@ -3820,14 +3820,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
         </div>
         <div class="area-wizard-footer">
             <div class="flex items-center gap-2 flex-wrap">
-                <button type="button" class="aw-btn aw-btn-back" id="aw-btn-cancel" hidden>⬅️ กลับหน้าเอกสาร</button>
+                <button type="button" class="aw-btn aw-btn-back" id="aw-btn-cancel">⏭️ ข้ามไปหน้าหลัก / แผน T&amp;V</button>
                 <button type="button" class="aw-btn aw-btn-back" onclick="window.__jobMgr?.saveCurrentJob()" title="บันทึกงานเบิกนี้ไว้กลับมาแก้ไขภายหลัง">💾 บันทึกงานนี้</button>
                 <span class="aw-step-label" id="aw-step-label">ขั้น 1 จาก 7</span>
             </div>
             <div class="aw-nav">
                 <button type="button" class="aw-btn aw-btn-back" id="aw-btn-back" disabled>⬅️ ย้อนกลับ</button>
-                <button type="button" class="aw-btn aw-btn-next" id="aw-btn-next" disabled>ต่อไป ➡️</button>
-                <button type="button" class="aw-btn aw-btn-finish" id="aw-btn-finish" hidden disabled>✓ สร้างเอกสาร</button>
+                <button type="button" class="aw-btn aw-btn-next" id="aw-btn-next">ต่อไป ➡️</button>
+                <button type="button" class="aw-btn aw-btn-finish" id="aw-btn-finish" hidden>✓ สร้างเอกสาร</button>
             </div>
         </div>
     </div>
@@ -10138,13 +10138,14 @@ const ORG = window.ORG || {};
             if (step < FW_TOTAL) {
                 btnNext.hidden = false;
                 btnFinish.hidden = true;
-                btnNext.disabled = !fwCanGoNext(step);
-                btnNext.textContent = (FW_STEPS[step - 1] && FW_STEPS[step - 1].optional) ? 'ต่อไป (ข้ามได้)' : 'ต่อไป';
+                btnNext.disabled = false;
+                var filled = fwCanGoNext(step);
+                btnNext.textContent = filled ? 'ต่อไป ➡️' : 'ต่อไป (ข้ามได้) ➡️';
             } else {
                 btnNext.hidden = true;
                 btnFinish.hidden = false;
                 btnFinish.disabled = false;
-                btnFinish.textContent = 'สร้างเอกสาร';
+                btnFinish.textContent = '✓ สร้างเอกสาร';
             }
         }
     }
@@ -10228,7 +10229,9 @@ const ORG = window.ORG || {};
         }
         if (btnNext) {
             btnNext.addEventListener('click', function () {
-                if (!fwValidateStep(areaWizard.step)) return;
+                if (valOf('in-name-custom') && typeof useCustomName === 'function') {
+                    try { useCustomName(true); } catch (e) { /* ignore */ }
+                }
                 goAwStep(areaWizard.step + 1);
             });
         }
@@ -10240,7 +10243,12 @@ const ORG = window.ORG || {};
         var btnCancel = document.getElementById('aw-btn-cancel');
         if (btnCancel) {
             btnCancel.addEventListener('click', function () {
-                if (areaWizard.allowCancel) closeAreaWizard();
+                if (valOf('in-name-custom') && typeof useCustomName === 'function') {
+                    try { useCustomName(true); } catch (e) { /* ignore */ }
+                }
+                setFormWizardDone(true);
+                closeAreaWizard();
+                if (typeof updatePreview === 'function') updatePreview();
             });
         }
         var progressOl = document.getElementById('aw-progress');
@@ -10250,11 +10258,10 @@ const ORG = window.ORG || {};
                 if (!li) return;
                 var targetStep = parseInt(li.getAttribute('data-step'), 10);
                 if (!targetStep || targetStep === areaWizard.step) return;
-                if (targetStep < areaWizard.step) {
-                    goAwStep(targetStep);
-                } else if (fwValidateStep(areaWizard.step)) {
-                    goAwStep(targetStep);
+                if (valOf('in-name-custom') && typeof useCustomName === 'function') {
+                    try { useCustomName(true); } catch (e) { /* ignore */ }
                 }
+                goAwStep(targetStep);
             });
         }
     }
@@ -10265,9 +10272,12 @@ const ORG = window.ORG || {};
         areaWizard.province = ORG.province || 'นครราชสีมา';
         areaWizard.amphoe = ORG.amphoe || 'สีดา';
         areaWizard.officeTambon = ORG.officeTambon || 'สีดา';
-        areaWizard.allowCancel = isFormWizardDone();
+        areaWizard.allowCancel = true;
         var btnCancel = document.getElementById('aw-btn-cancel');
-        if (btnCancel) btnCancel.hidden = !areaWizard.allowCancel;
+        if (btnCancel) {
+            btnCancel.hidden = false;
+            btnCancel.textContent = isFormWizardDone() ? '⬅️ กลับหน้าเอกสาร' : '⏭️ ข้ามไปหน้าหลัก / แผน T&V';
+        }
         var startStep = Math.max(1, Math.min(FW_TOTAL, opts.step || 1));
         var wiz = document.getElementById('area-wizard');
         if (wiz) {
