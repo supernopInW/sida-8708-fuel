@@ -1717,6 +1717,16 @@
         }
     }
 
+    function updateModalBotStatus(mode, text) {
+        const ms = document.getElementById('doh-bot-modal-status');
+        if (!ms) return;
+        ms.className = 'mt-2 px-2.5 py-1.5 rounded-lg border font-semibold text-[11px] ';
+        if (mode === 'ok') ms.className += 'border-emerald-300 bg-emerald-50 text-emerald-900';
+        else if (mode === 'checking') ms.className += 'border-sky-300 bg-sky-50 text-sky-900';
+        else ms.className += 'border-rose-200 bg-rose-50 text-rose-800';
+        ms.textContent = text;
+    }
+
     function refreshBotUI() {
         const pill = document.getElementById('doh-bot-status-pill');
         const stopBtn = document.getElementById('btn-doh-bot-stop');
@@ -1732,6 +1742,11 @@
                 pill.textContent = '🤖 โหมดอัตโนมัติ (Chrome/Edge): ยังไม่พบส่วนเสริม';
                 pill.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-300 bg-white text-slate-700';
             }
+        }
+        if (_botState.connected) {
+            updateModalBotStatus('ok', '🟢 สถานะปัจจุบัน: เชื่อมต่อส่วนเสริม DOH Auto-Bot v' + (_botState.version || '1.2.1') + ' สำเร็จแล้ว! (พร้อมดึงระยะทาง DOH + ส่งแผนเข้าเว็บ T&V)');
+        } else {
+            updateModalBotStatus('err', '🔴 สถานะปัจจุบัน: ยังไม่พบส่วนเสริมในเบราว์เซอร์นี้ — กรุณาทำข้อ 1–3 (หรือกด Reload ส่วนเสริม) แล้วกดตรวจจับอีกครั้ง');
         }
         if (stopBtn) {
             stopBtn.classList.toggle('hidden', !_botState.running);
