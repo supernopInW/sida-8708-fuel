@@ -2345,13 +2345,7 @@
 
         return `
         <div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">
-            <div style="text-align:center;font-weight:700;font-size:17pt;line-height:1.35;margin-bottom:10px;">
-                <div>รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
-                <div>${escH(meta.officerName)}</div>
-                <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
-                <div>${escH(meta.monthYear)}</div>
-            </div>
-            <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:none;">
                 <colgroup>
                     <col style="width:4%;">
                     <col style="width:12%;">
@@ -2367,6 +2361,14 @@
                     <col style="width:7%;">
                 </colgroup>
                 <thead>
+                    <tr>
+                        <th colspan="12" style="border:none !important;padding:0 0 10px 0;text-align:center;font-weight:700;font-size:17pt;line-height:1.35;background:transparent;">
+                            <div>รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
+                            <div>${escH(meta.officerName)}</div>
+                            <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
+                            <div>${escH(meta.monthYear)}</div>
+                        </th>
+                    </tr>
                     <tr>
                         <th rowspan="2" style="${thStyle}">ลำดับ</th>
                         <th rowspan="2" style="${thStyle}">ประเด็น</th>
@@ -2385,26 +2387,31 @@
                         <th style="${thStyle}">ไม่ได้<br>ดำเนิน<br>การ</th>
                     </tr>
                 </thead>
-                <tbody>${bodyRowsHtml}</tbody>
-            </table>
-
-            <table style="width:100%;border:none;border-collapse:collapse;margin-top:26px;page-break-inside:avoid;">
-                <tr>
-                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
-                        <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
-                        <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.officerName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
-                    </td>
-                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
-                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
-                        <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.bossName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
-                    </td>
-                </tr>
+                <tbody>
+                    ${bodyRowsHtml}
+                    <tr style="page-break-inside:avoid;">
+                        <td colspan="12" style="border:none !important;padding:22px 0 0 0;">
+                            <table style="width:100%;border:none;border-collapse:collapse;page-break-inside:avoid;">
+                                <tr>
+                                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                                        <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
+                                        <div style="margin-top:18px;">........................................................</div>
+                                        <div>( ${escH(meta.officerName)} )</div>
+                                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
+                                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                                    </td>
+                                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
+                                        <div style="margin-top:18px;">........................................................</div>
+                                        <div>( ${escH(meta.bossName)} )</div>
+                                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
+                                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>`;
     }
