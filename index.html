@@ -4473,6 +4473,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="bg111" onclick="switchDocFilter('bg111')">บก.111</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="vehicle" onclick="switchDocFilter('vehicle')">หน้างบ+แผนที่</button>
             <button type="button" class="doc-tab-btn text-xs font-semibold px-2.5 py-1.5 rounded border border-teal-500 bg-teal-50 text-teal-900" data-doc="tvreport" onclick="switchDocFilter('tvreport')">📋 รายงานผล T&amp;V</button>
+            <button type="button" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-sky-500 bg-sky-50 hover:bg-sky-100 text-sky-900" onclick="window.__tvReport?.printPlanPdf()" title="นำแผนดำเนินงาน T&amp;V (.docx) ที่อัปโหลดมาจัดเรียงเป็น PDF แนวนอน A4 (ล็อกหัวทุกหน้า)">📅 PDF แผนดำเนินงาน</button>
             <button type="button" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-900" onclick="window.__tvReport?.printMapsPdf()" title="นำแผนที่ DOH ที่อัปโหลดทุกวันมาจัดเรียงเป็น PDF แยกชุด (1 วัน / 1 หน้า A4)">🗺️ PDF แผนที่ DOH</button>
         </div>
 
@@ -6408,6 +6409,8 @@ window.ORG = {
                     seqNum: it.seqNum || 0,
                     category: String(it.category || '').replace(/^[\}\]\s]+/, '').trim(),
                     activity: String(it.activity || it.detail || '').trim(),
+                    detail: String(it.detail || '').trim(),
+                    note: String(it.note || '').trim(),
                     dateDisplay: it.dateDisplay || '',
                     dateRaw: it.dateRaw || '',
                     dateIso: it.dateIso || '',
@@ -7671,12 +7674,192 @@ window.ORG = {
         setTimeout(function () { w.focus(); w.print(); }, 450);
     }
 
+    function tvrBuildPlanDocumentHtml(mode) {
+        const meta = tvrGetFormMeta();
+        const plan = tvrLoadPlan();
+        const thStyle = 'border:1px solid #000;padding:4px 5px;text-align:center;vertical-align:top;font-weight:700;font-size:15pt;line-height:1.15;';
+        const tdStyle = 'border:1px solid #000;padding:4px 5px;vertical-align:top;font-size:15pt;line-height:1.2;';
+
+        let items = [];
+        if (plan && Array.isArray(plan.items) && plan.items.length) {
+            items = plan.items.map(function (it, idx) {
+                return {
+                    seq: it.seqNum || (idx + 1),
+                    category: String(it.category || (it.isFieldTrip ? 'การเยี่ยมเยียน (VISITING)' : 'การถ่ายทอดความรู้ (TRAINING)')).replace(/^[\}\]\s]+/, '').trim(),
+                    activity: String(it.activity || '').trim(),
+                    detail: String(it.detail || it.activity || '').trim(),
+                    dateHtml: tvrFormatDateCell(it.dateParsed, it.dateDisplay, it.dateRaw),
+                    location: String(it.locationRaw || '').trim(),
+                    targetCount: String(it.targetCount || '').trim(),
+                    note: String(it.note || '').trim()
+                };
+            });
+        } else {
+            // Fallback จากแถววันเดินทางที่กรอกในฟอร์ม
+            const cfg = getActiveOrgConfig();
+            document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r, idx) {
+                const dt = (r.querySelector('.day-date')?.value || '').trim();
+                const dest = (r.querySelector('.day-dest')?.value || '').trim();
+                if (!dt) return;
+                const cleanLoc = dest.replace(new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), '').trim() || cfg.officeName;
+                items.push({
+                    seq: idx + 1,
+                    category: 'การเยี่ยมเยียน (VISITING)',
+                    activity: 'ปฏิบัติงานส่งเสริมการเกษตรในพื้นที่',
+                    detail: 'ติดตามเยี่ยมเยียนและให้คำแนะนำเกษตรกร',
+                    dateHtml: tvrFormatDateCell(null, dt, dt),
+                    location: cleanLoc,
+                    targetCount: '',
+                    note: ''
+                });
+            });
+        }
+
+        const header4LinesHtml = `
+            <div style="text-align:center;font-weight:700;font-size:17pt;line-height:1.35;margin-bottom:8px;">
+                <div>แผนการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
+                <div>${escH(meta.officerName)}</div>
+                <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
+                <div>${escH(meta.monthYear)}</div>
+            </div>`;
+
+        const tableHeadHtml = `
+            <colgroup>
+                <col style="width:5%;">
+                <col style="width:14%;">
+                <col style="width:16%;">
+                <col style="width:20%;">
+                <col style="width:12%;">
+                <col style="width:17%;">
+                <col style="width:8%;">
+                <col style="width:8%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2" style="${thStyle}">ลำดับ</th>
+                    <th rowspan="2" style="${thStyle}">ประเด็น</th>
+                    <th colspan="2" style="${thStyle}">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>
+                    <th rowspan="2" style="${thStyle}">ช่วงเวลา<br>ดำเนินการ</th>
+                    <th rowspan="2" style="${thStyle}">สถานที่ดำเนินการ</th>
+                    <th rowspan="2" style="${thStyle}">จำนวนบุคคล<br>เป้าหมาย<br>(ราย/กลุ่ม)</th>
+                    <th rowspan="2" style="${thStyle}">หมายเหตุ</th>
+                </tr>
+                <tr>
+                    <th style="${thStyle}">กิจกรรม</th>
+                    <th style="${thStyle}">รายละเอียด</th>
+                </tr>
+            </thead>`;
+
+        const signHtml = `
+            <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
+                <tr>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้จัดทำแผน</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.officerName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.bossName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                </tr>
+            </table>`;
+
+        const MAX_WEIGHT_PER_PAGE = 15;
+        const pages = [];
+        let curPage = [];
+        let curWeight = 0;
+        items.forEach(function (r) {
+            const actLines = Math.max(1, Math.ceil(String(r.activity || '').length / 22));
+            const detLines = Math.max(1, Math.ceil(String(r.detail || '').length / 28));
+            const locLines = Math.max(2, Math.ceil(String(r.location || '').length / 22));
+            const w = Math.max(2, actLines, detLines, locLines);
+            if (curPage.length > 0 && (curWeight + w > MAX_WEIGHT_PER_PAGE || curPage.length >= 6)) {
+                pages.push(curPage);
+                curPage = [];
+                curWeight = 0;
+            }
+            curPage.push({ row: r, weight: w });
+            curWeight += w;
+        });
+        if (curPage.length) pages.push(curPage);
+
+        if (!pages.length) return '';
+
+        const lastPageWeight = pages[pages.length - 1].reduce(function (acc, x) { return acc + x.weight; }, 0);
+        const separateSignPage = lastPageWeight > 9;
+        const pageBreakHtml = (mode === 'word')
+            ? '<br clear="all" style="page-break-before:always;mso-break-type:page-break;mso-special-character:line-break" />'
+            : '';
+
+        const pageDivs = pages.map(function (pg, pIdx) {
+            const isLastTablePage = (pIdx === pages.length - 1);
+            const trsHtml = pg.map(function (item) {
+                const r = item.row;
+                return `<tr>
+                    <td style="${tdStyle}text-align:center;">${r.seq}</td>
+                    <td style="${tdStyle}">${escH(r.category)}</td>
+                    <td style="${tdStyle}">${escH(r.activity)}</td>
+                    <td style="${tdStyle}">${escH(r.detail)}</td>
+                    <td style="${tdStyle}text-align:center;white-space:nowrap;">${r.dateHtml}</td>
+                    <td style="${tdStyle}">${tvrFormatLocationHtml(r.location)}</td>
+                    <td style="${tdStyle}text-align:right;">${escH(r.targetCount)}</td>
+                    <td style="${tdStyle}">${escH(r.note)}</td>
+                </tr>`;
+            }).join('');
+            const pbStyle = (mode === 'print' && pIdx > 0) ? 'page-break-before:always;break-before:page;' : '';
+            return `<div class="tvr-page" style="${pbStyle}">
+                ${header4LinesHtml}
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+                    ${tableHeadHtml}
+                    <tbody>${trsHtml}</tbody>
+                </table>
+                ${isLastTablePage && !separateSignPage ? signHtml : ''}
+            </div>`;
+        });
+
+        if (separateSignPage) {
+            const pbStyle = (mode === 'print') ? 'page-break-before:always;break-before:page;' : '';
+            pageDivs.push(`<div class="tvr-page" style="${pbStyle}">${header4LinesHtml}<div style="margin-top:42px;">${signHtml}</div></div>`);
+        }
+
+        return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">${pageDivs.join(pageBreakHtml)}</div>`;
+    }
+
+    function printPlanPdf() {
+        const bodyHtml = tvrBuildPlanDocumentHtml('print');
+        if (!bodyHtml) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีข้อมูลแผนดำเนินงาน กรุณานำเข้าไฟล์แผน T&V (.docx) หรือเพิ่มวันเดินทางก่อนครับ');
+            return;
+        }
+        const meta = tvrGetFormMeta();
+        const w = window.open('', '_blank', 'width=1150,height=780');
+        if (!w) {
+            if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์/บันทึก PDF แผนดำเนินงาน');
+            return;
+        }
+        w.document.open();
+        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>แผนการปฏิบัติงาน T&V - ' + escH(meta.officerName) + '</title><style>' +
+            '@page { size: A4 landscape; margin: 12mm 10mm; }' +
+            'body { margin: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; background: #fff; }' +
+            'tr { page-break-inside: avoid; }' +
+            '</style></head><body>' + bodyHtml + '</body></html>');
+        w.document.close();
+        setTimeout(function () { w.focus(); w.print(); }, 350);
+    }
+
     global.__tvReport = {
         render: renderTvReport,
         toggleDone: toggleTvReportDone,
         updateField: updateTvReportField,
         exportWord: exportTvReportWord,
         printPdf: printTvReportPdf,
+        printPlanPdf: printPlanPdf,
         printMapsPdf: printMapsPdf
     };
 
