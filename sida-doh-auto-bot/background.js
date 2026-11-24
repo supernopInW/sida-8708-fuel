@@ -603,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.2.3', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
+    sendResponse({ ok: true, version: '1.2.4', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
     return false;
   }
 
@@ -816,6 +816,28 @@ async function runTvSendJob(job) {
             while (Date.now() - start < timeoutMs) { const v = fn(); if (v) return v; await delay(stepMs); }
             return null;
           };
+          const countTableRows = () => {
+            const tbody = document.getElementById('wfs_show402');
+            if (!tbody) return 0;
+            return Array.from(tbody.querySelectorAll('tr')).filter((tr) => tr.querySelectorAll('td').length >= 5).length;
+          };
+          const isModalOpen = () => {
+            const m = document.getElementById('bizModal_402');
+            if (!m) return false;
+            const cs = window.getComputedStyle(m);
+            return m.classList.contains('in') || m.classList.contains('show') || (cs && cs.display !== 'none' && m.offsetParent !== null);
+          };
+          const readAlertText = () => {
+            const sw = document.querySelector('.sweet-alert.visible, .swal2-container');
+            if (!sw) return '';
+            return String(sw.innerText || sw.textContent || '').replace(/\s+/g, ' ').trim();
+          };
+          const dismissOkAlert = () => {
+            const btn = document.querySelector('.sweet-alert.visible button.confirm, .swal2-container button.swal2-confirm');
+            if (btn) { btn.click(); return true; }
+            return false;
+          };
+
           // HUD บนหน้า T&V
           let hud = document.getElementById('__sida_tv_hud');
           if (!hud) {
@@ -827,17 +849,34 @@ async function runTvSendJob(job) {
           hud.textContent = '🤖 กำลังส่งแผน T&V: ' + seqNo + '/' + totalNo + ' (' + (itArg.dateDMY || '') + ')';
 
           try {
-            const addBtn = document.querySelector('a[onclick*="form_mgt.php"]');
-            if (!addBtn) throw new Error('ไม่พบปุ่ม "+ เพิ่มข้อมูล" บนหน้าแผน T&V');
+            // 0) เคลียร์ modal เดิมหรือแจ้งเตือนค้างให้สนิทก่อนเปิดรายการใหม่
+            dismissOkAlert();
+            if (isModalOpen() || document.getElementById('form_wf_mgt')) {
+              const oldClose = document.querySelector('#bizModal_402 button.close-modal, #bizModal_402 button.close, #bizModal_402 [data-dismiss="modal"]');
+              if (oldClose) oldClose.click();
+              await waitFor(() => !document.getElementById('form_wf_mgt') && !isModalOpen(), 8000);
+              await delay(300);
+            }
+
+            const beforeRows = countTableRows();
+
+            // 1) เลือกเฉพาะปุ่ม "+ เพิ่มข้อมูล" (WFR_ID=0) ห้ามไปกดปุ่ม "แก้ไข" ในตารางเด็ดขาด!
+            const candidates = Array.from(document.querySelectorAll('a[onclick*="form_mgt.php"], button[onclick*="form_mgt.php"]'));
+            const addBtn = candidates.find((el) => (el.getAttribute('onclick') || '').includes('WFR_ID=0'))
+              || candidates.find((el) => (el.textContent || '').includes('เพิ่มข้อมูล'));
+            if (!addBtn) throw new Error('ไม่พบปุ่ม "+ เพิ่มข้อมูล" (WFR_ID=0) บนหน้าแผน T&V');
             addBtn.click();
 
+            // 2) รอฟอร์มใหม่ที่เพิ่งโหลดจาก AJAX (ต้องไม่ใช่ฟอร์มเก่าที่เคยส่งไปแล้ว)
             const form = await waitFor(() => {
               const f = document.getElementById('form_wf_mgt');
-              if (!f) return null;
+              if (!f || f.dataset.__sidaSubmitted === '1') return null;
               const issueSel = f.querySelector('#PD_ISSUES');
-              return (issueSel && issueSel.options && issueSel.options.length > 1) ? f : null;
+              const wfrIdInp = f.querySelector('input[name="WFR_ID"]');
+              const isNew = !wfrIdInp || !wfrIdInp.value || wfrIdInp.value === '0';
+              return (isNew && issueSel && issueSel.options && issueSel.options.length > 1) ? f : null;
             }, 12000);
-            if (!form) throw new Error('เปิดหน้าต่างเพิ่มรายการไม่สำเร็จ');
+            if (!form) throw new Error('เปิดหน้าต่างเพิ่มรายการใหม่ไม่สำเร็จ (WFR_ID=0)');
 
             const c = norm(itArg.category);
             const issueCode = (c.includes('training') || c.includes('ถ่ายทอด')) ? '1'
@@ -845,7 +884,7 @@ async function runTvSendJob(job) {
               : (c.includes('supervision') || c.includes('นิเทศ')) ? '4'
               : (c.includes('data') || c.includes('ข้อมูล')) ? '5' : '2';
             setSelect2(form.querySelector('#PD_ISSUES'), issueCode);
-            await delay(650);
+            await delay(700);
 
             const actSel = await waitFor(() => {
               const s = form.querySelector('#PD_ACTIVITY');
@@ -882,17 +921,23 @@ async function runTvSendJob(job) {
             if (sDateEl && itArg.dateDMY) {
               sDateEl.disabled = false; sDateEl.removeAttribute('disabled');
               sDateEl.value = itArg.dateDMY;
+              if (window.jQuery) {
+                try { if (typeof window.jQuery(sDateEl).datepicker === 'function') window.jQuery(sDateEl).datepicker('update', itArg.dateDMY); } catch (e) {}
+                try { window.jQuery(sDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {}
+              }
               sDateEl.dispatchEvent(new Event('input', { bubbles: true }));
               sDateEl.dispatchEvent(new Event('change', { bubbles: true }));
-              if (window.jQuery) { try { window.jQuery(sDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {} }
-              await delay(250);
+              await delay(300);
             }
             if (eDateEl && itArg.dateDMY) {
               eDateEl.disabled = false; eDateEl.removeAttribute('disabled');
               eDateEl.value = itArg.dateDMY;
+              if (window.jQuery) {
+                try { if (typeof window.jQuery(eDateEl).datepicker === 'function') window.jQuery(eDateEl).datepicker('update', itArg.dateDMY); } catch (e) {}
+                try { window.jQuery(eDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {}
+              }
               eDateEl.dispatchEvent(new Event('input', { bubbles: true }));
               eDateEl.dispatchEvent(new Event('change', { bubbles: true }));
-              if (window.jQuery) { try { window.jQuery(eDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {} }
             }
 
             const placeEl = form.querySelector('#PD_PLACE');
@@ -910,20 +955,42 @@ async function runTvSendJob(job) {
 
             const saveBtn = form.querySelector('button[type="submit"]');
             if (!saveBtn) throw new Error('ไม่พบปุ่มบันทึกในหน้าต่างเพิ่มรายการ');
+            form.dataset.__sidaSubmitted = '1';
             saveBtn.disabled = false; saveBtn.removeAttribute('disabled');
             saveBtn.click();
 
-            await delay(1200);
-            await waitFor(() => {
-              const m = document.getElementById('bizModal_402');
-              return !m || !m.classList.contains('show') || m.style.display === 'none';
-            }, 8000);
-            await delay(350);
-            return { ok: true };
+            // 3) รอให้ Modal ปิดจริง (รองรับ Bootstrap 3 class 'in' + ล้าง #form_wf_mgt) และรอตาราง #wfs_show402 อัปเดตเพิ่มแถว
+            await delay(800);
+            let alertMsg = '';
+            const savedOk = await waitFor(() => {
+              const aTxt = readAlertText();
+              if (aTxt) {
+                alertMsg = aTxt;
+                dismissOkAlert();
+              }
+              const closed = !document.getElementById('form_wf_mgt') && !isModalOpen();
+              const curRows = countTableRows();
+              return (closed && curRows > beforeRows) ? { closed, curRows } : null;
+            }, 14000, 300);
+
+            const afterRows = countTableRows();
+            if (!savedOk) {
+              // ถ้า Modal ปิดแล้วแต่ตารางยังไม่อัปเดต หรือยังค้าง
+              if (isModalOpen() || document.getElementById('form_wf_mgt')) {
+                const closeBtn = document.querySelector('#bizModal_402 button.close-modal, #bizModal_402 button.close, #bizModal_402 [data-dismiss="modal"]');
+                if (closeBtn) closeBtn.click();
+                await delay(400);
+              }
+              if (afterRows <= beforeRows) {
+                throw new Error('ตารางไม่เพิ่มแถว (' + beforeRows + '→' + afterRows + ')' + (alertMsg ? ' · แจ้งเตือน: ' + alertMsg.slice(0, 80) : ''));
+              }
+            }
+            await delay(450);
+            return { ok: true, tableRows: afterRows };
           } catch (rowErr) {
-            const closeBtn = document.querySelector('#bizModal_402 button.close-modal');
+            const closeBtn = document.querySelector('#bizModal_402 button.close-modal, #bizModal_402 button.close, #bizModal_402 [data-dismiss="modal"]');
             if (closeBtn) closeBtn.click();
-            await delay(350);
+            await delay(450);
             return { ok: false, error: rowErr && rowErr.message ? rowErr.message : String(rowErr) };
           }
         }
@@ -931,7 +998,7 @@ async function runTvSendJob(job) {
       const rOut = rowRes && rowRes[0] && rowRes[0].result ? rowRes[0].result : { ok: false, error: 'ไม่มีผลลัพธ์' };
       if (rOut.ok) {
         sentCount++;
-        sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '✅ [' + (i + 1) + '/' + items.length + '] บันทึกรายการสำเร็จ' });
+        sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '✅ [' + (i + 1) + '/' + items.length + '] บันทึกสำเร็จ (ตาราง T&V มี ' + (rOut.tableRows || sentCount) + ' แถว)' });
       } else {
         errors.push('#' + (i + 1) + ': ' + rOut.error);
         sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '⚠️ [' + (i + 1) + '/' + items.length + '] ไม่สำเร็จ: ' + rOut.error });

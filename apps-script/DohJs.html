@@ -3485,14 +3485,14 @@
         }
         if (!_botState.connected) {
             openInstallModal();
-            if (typeof global.showToast === 'function') global.showToast('กรุณาติดตั้ง/อัปเดตส่วนเสริม DOH Auto-Bot (v1.2.3) เพื่อส่งแผนเข้าเว็บ tandv.doae.go.th อัตโนมัติครับ');
+            if (typeof global.showToast === 'function') global.showToast('กรุณาติดตั้ง/อัปเดตส่วนเสริม DOH Auto-Bot (v1.2.4) เพื่อส่งแผนเข้าเว็บ tandv.doae.go.th อัตโนมัติครับ');
             return;
         }
         const verParts = String(_botState.version || '0.0.0').split('.').map(function (x) { return parseInt(x, 10) || 0; });
         const verNum = verParts[0] * 10000 + verParts[1] * 100 + verParts[2];
-        if (verNum < 10200) {
-            setTvPlanSendStatus('⚠️ ส่วนเสริมของคุณยังเป็นเวอร์ชัน v' + (_botState.version || '?') + ' (เก่าเกินไป) — กรุณาไปที่ chrome://extensions แล้วกด Reload (↻) ให้เป็น v1.2.3 ก่อนส่งแผนครับ', 'warn', true);
-            if (typeof global.showToast === 'function') global.showToast('กรุณากด Reload ส่วนเสริมให้เป็น v1.2.3 ก่อนส่งแผนเข้า T&V ครับ');
+        if (verNum < 10204) {
+            setTvPlanSendStatus('⚠️ ส่วนเสริมของคุณยังเป็นเวอร์ชัน v' + (_botState.version || '?') + ' (เก่าเกินไป) — กรุณาไปที่ chrome://extensions แล้วกด Reload (↻) ให้เป็น v1.2.4 ก่อนส่งแผนครับ', 'warn', true);
+            if (typeof global.showToast === 'function') global.showToast('กรุณากด Reload ส่วนเสริมให้เป็น v1.2.4 ก่อนส่งแผนเข้า T&V ครับ');
             return;
         }
 
@@ -3523,10 +3523,11 @@
 
         const payloadItems = sortedPlanItems.map(function (it) {
             const p = it.dateParsed || parseThaiDateCell(it.dateDisplay || it.dateRaw);
-            const dd = p && p.day ? String(p.day).padStart(2, '0') : '01';
-            const moNum = (p && p.monthFull && mFullMap[p.monthFull]) ? mFullMap[p.monthFull] : mNum;
+            const isoM = String(it.dateIso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            const dd = (p && p.day) ? String(p.day).padStart(2, '0') : (isoM ? isoM[3] : '01');
+            const moNum = (p && p.monthFull && mFullMap[p.monthFull]) ? mFullMap[p.monthFull] : (isoM ? parseInt(isoM[2], 10) : mNum);
             const mm = String(moNum).padStart(2, '0');
-            const yy = (p && p.yearBE) ? String(p.yearBE) : String(yearBE);
+            const yy = (p && p.yearBE) ? String(p.yearBE) : (isoM ? String(parseInt(isoM[1], 10) + 543) : String(yearBE));
             return {
                 category: it.category || '',
                 activity: it.activity || '',
