@@ -3142,6 +3142,9 @@
         const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
         const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
         const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const fiscalBE = (month >= 10) ? (yearBE + 1) : yearBE;
+        const fyBadge = document.getElementById('tvb-fiscal-badge');
+        if (fyBadge) fyBadge.textContent = 'ปีงบประมาณ พ.ศ. ' + fiscalBE;
         const calKey = yearBE + '-' + month;
         if (forceResetDefaults || calKey !== _tvbLastCalKey) {
             _tvbLastCalKey = calKey;
@@ -3269,6 +3272,9 @@
         const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
         const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
         const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const fiscalBE = (month >= 10) ? (yearBE + 1) : yearBE;
+        const fyBadge = document.getElementById('tvb-fiscal-badge');
+        if (fyBadge) fyBadge.textContent = 'ปีงบประมาณ พ.ศ. ' + fiscalBE;
         const holidayRaw = (document.getElementById('tvb-holidays')?.value || '');
         const holidays = new Set((holidayRaw.match(/\d+/g) || []).map(function (x) { return parseInt(x, 10); }));
         const includeMeetings = !!(document.getElementById('tvb-include-meetings')?.checked);

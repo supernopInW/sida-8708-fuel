@@ -8228,6 +8228,9 @@ window.ORG = {
         const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
         const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
         const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const fiscalBE = (month >= 10) ? (yearBE + 1) : yearBE;
+        const fyBadge = document.getElementById('tvb-fiscal-badge');
+        if (fyBadge) fyBadge.textContent = 'ปีงบประมาณ พ.ศ. ' + fiscalBE;
         const calKey = yearBE + '-' + month;
         if (forceResetDefaults || calKey !== _tvbLastCalKey) {
             _tvbLastCalKey = calKey;
@@ -8355,6 +8358,9 @@ window.ORG = {
         const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
         const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
         const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const fiscalBE = (month >= 10) ? (yearBE + 1) : yearBE;
+        const fyBadge = document.getElementById('tvb-fiscal-badge');
+        if (fyBadge) fyBadge.textContent = 'ปีงบประมาณ พ.ศ. ' + fiscalBE;
         const holidayRaw = (document.getElementById('tvb-holidays')?.value || '');
         const holidays = new Set((holidayRaw.match(/\d+/g) || []).map(function (x) { return parseInt(x, 10); }));
         const includeMeetings = !!(document.getElementById('tvb-include-meetings')?.checked);
@@ -19609,7 +19615,7 @@ const ORG = window.ORG || {};
                     </select>
                 </div>
                 <div>
-                    <label for="tvb-year" class="block font-semibold text-slate-700 mb-1">ปี พ.ศ.</label>
+                    <label for="tvb-year" class="block font-semibold text-slate-700 mb-1">ปี พ.ศ. ปฏิทิน <span id="tvb-fiscal-badge" class="ml-1 px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">ปีงบประมาณ พ.ศ. 2570</span></label>
                     <input type="number" id="tvb-year" value="2569" min="2560" max="2600" onchange="window.__tvReport?.renderBuilderHolidayCalendar()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
                 </div>
                 <div class="sm:col-span-2">
