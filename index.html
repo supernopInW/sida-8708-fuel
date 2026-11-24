@@ -8564,7 +8564,13 @@ window.ORG = {
         // ปีงบประมาณไทย: ต.ค. (10), พ.ย. (11), ธ.ค. (12) = พ.ศ. + 1
         const fiscalYearBE = (mNum >= 10) ? (yearBE + 1) : yearBE;
 
-        const payloadItems = plan.items.map(function (it) {
+        const sortedPlanItems = plan.items.slice().sort(function (a, b) {
+            const ia = tvrToIso(a.dateIso, a.dateParsed, a.dateDisplay, a.dateRaw) || '9999-99-99';
+            const ib = tvrToIso(b.dateIso, b.dateParsed, b.dateDisplay, b.dateRaw) || '9999-99-99';
+            return ia === ib ? ((a.seqNum || 0) - (b.seqNum || 0)) : ia.localeCompare(ib);
+        });
+
+        const payloadItems = sortedPlanItems.map(function (it) {
             const p = it.dateParsed || parseThaiDateCell(it.dateDisplay || it.dateRaw);
             const dd = p && p.day ? String(p.day).padStart(2, '0') : '01';
             const moNum = (p && p.monthFull && mFullMap[p.monthFull]) ? mFullMap[p.monthFull] : mNum;
