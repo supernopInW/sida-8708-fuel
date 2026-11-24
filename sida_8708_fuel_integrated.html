@@ -4383,6 +4383,26 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                             <button type="button" id="btn-sync-claim-to-plan" onclick="window.__tvReport?.syncPlanToClaim8708()" class="hidden px-2 py-1 rounded bg-sky-700 hover:bg-sky-800 text-white font-semibold">🔄 ปรับตัวเบิกให้ตรงแผน</button>
                         </div>
                     </div>
+                    <div id="tv-chief-plan-panel" class="mb-2.5 p-2.5 rounded-lg border border-violet-300 bg-violet-50/90 text-[11px] text-violet-950 no-print">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div id="tv-chief-plan-header" class="font-bold text-violet-950">📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน ระบบจะจำไว้แสดงที่นี่อัตโนมัติ)</span></div>
+                            <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                                <button type="button" onclick="window.__tvReport?.saveCurrentAsChiefPlan?.()" class="px-2 py-0.5 rounded border border-violet-400 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]" title="บันทึกแผน T&amp;V ปัจจุบันเป็นแผนของเกษตรอำเภอ">💾 บันทึกเป็นแผนเกษตรอำเภอ</button>
+                                <button type="button" id="btn-toggle-chief-list" onclick="window.__tvReport?.toggleChiefList?.()" class="hidden px-2 py-0.5 rounded border border-violet-300 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]">ซ่อน/แสดงรายการ</button>
+                            </div>
+                        </div>
+                        <div id="tv-chief-plan-body" class="hidden mt-2 space-y-2">
+                            <div id="tv-chief-plan-list" class="max-h-36 overflow-y-auto rounded border border-violet-200 bg-white/95 divide-y divide-violet-100 text-[10.5px]"></div>
+                            <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-violet-200/80">
+                                <button type="button" onclick="window.__tvReport?.applyChiefPlan?.('same')" class="px-2.5 py-1 rounded bg-violet-700 hover:bg-violet-800 text-white font-semibold text-[11px]" title="คัดลอกกิจกรรมและสถานที่เหมือนเกษตรอำเภอทุกประการ (สำหรับเจ้าพนักงานธุรการที่ไปด้วยกัน)">🤝 ไปด้วยกัน (ธุรการ: เหมือนเกษตรอำเภอ)</button>
+                                <div class="inline-flex flex-wrap items-center gap-1 bg-white border border-violet-300 rounded px-1.5 py-0.5">
+                                    <span class="text-[10px] font-semibold text-violet-900">ตำบล:</span>
+                                    <select id="tv-chief-random-tambon" class="text-[11px] bg-transparent outline-none text-violet-950 font-semibold"></select>
+                                    <button type="button" onclick="window.__tvReport?.applyChiefPlan?.('random_tambon')" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[10.5px]" title="ใช้กิจกรรมและวันเหมือนเกษตรอำเภอ แต่สุ่มหมู่บ้านตามตำบลที่เลือก">🎲 ลิงก์กิจกรรม + สุ่มสถานที่</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div id="doh-progress-banner" class="mb-2.5 p-2.5 rounded-lg border border-amber-300 bg-amber-50/90 text-[11px] text-amber-950 no-print">
                         <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                             <span class="font-bold">🧭 ลิงก์ระยะทางจากเว็บ DOH TO TRAVEL เท่านั้น</span>
@@ -5037,6 +5057,7 @@ window.ORG = {
   /** รายชื่อผู้เดินทาง (dropdown) — เพิ่มชื่อเต็มพร้อมคำนำหน้าได้ */
   people: [
     { name: "นายนพฤทธิ์ น้อยเล็น", position: "นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" },
+    { name: "นางอรอนงค์ สูญกลาง", position: "เกษตรอำเภอ" },
     { name: "นางสาวหนึ่งนภา ปัจจัยโย", position: "เจ้าพนักงานธุรการ", tvOnly: true }
   ],
 
@@ -7839,9 +7860,189 @@ window.ORG = {
         return plan;
     }
 
+    const TVR_CHIEF_STORAGE_KEY = 'sida_tv_chief_plan_v1';
+
+    function tvrLoadChiefPlan() {
+        try {
+            const raw = localStorage.getItem(TVR_CHIEF_STORAGE_KEY);
+            if (!raw) return null;
+            const p = JSON.parse(raw);
+            return (p && Array.isArray(p.items) && p.items.length) ? p : null;
+        } catch (e) { return null; }
+    }
+
+    function tvrSaveChiefPlanSnapshot(plan, customChiefName) {
+        if (!plan || !Array.isArray(plan.items) || !plan.items.length) return;
+        const meta = tvrGetFormMeta();
+        const snap = {
+            chiefName: customChiefName || (meta.officerName && meta.officerName.indexOf('....') === -1 ? meta.officerName : meta.bossName) || 'เกษตรอำเภอ',
+            monthHeader: plan.monthHeader || meta.monthYear || '',
+            updatedAt: new Date().toISOString(),
+            items: plan.items.map(function (it) { return Object.assign({}, it); })
+        };
+        try { localStorage.setItem(TVR_CHIEF_STORAGE_KEY, JSON.stringify(snap)); } catch (e) { /* ignore */ }
+        renderChiefPlanPanel();
+    }
+
     function tvrSavePlanStore(plan) {
         global.__tvPlanStore = plan;
         try { localStorage.setItem(TVR_STORAGE_KEY, JSON.stringify(plan)); } catch (e) { /* ignore */ }
+        // หากผู้ใช้งานปัจจุบันมีตำแหน่ง "เกษตรอำเภอ" ให้บันทึกเป็นแผนเกษตรอำเภอไว้แสดงบนเว็บอัตโนมัติ
+        try {
+            const posVal = (document.getElementById('in-position')?.value || '').trim();
+            if (posVal.indexOf('เกษตรอำเภอ') !== -1 && plan && Array.isArray(plan.items) && plan.items.length) {
+                tvrSaveChiefPlanSnapshot(plan);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    let _chiefListCollapsed = false;
+    function toggleChiefList() {
+        _chiefListCollapsed = !_chiefListCollapsed;
+        const listEl = document.getElementById('tv-chief-plan-list');
+        const btn = document.getElementById('btn-toggle-chief-list');
+        if (listEl) listEl.classList.toggle('hidden', _chiefListCollapsed);
+        if (btn) btn.textContent = _chiefListCollapsed ? 'แสดงรายการ' : 'ซ่อนรายการ';
+    }
+
+    function populateChiefRandomTambonSelect() {
+        const sel = document.getElementById('tv-chief-random-tambon');
+        if (!sel) return;
+        const cfg = getActiveOrgConfig();
+        const tambons = Array.isArray(cfg.tambons) ? cfg.tambons : [];
+        const prev = sel.value;
+        let opts = '<option value="__ALL__">ทุกตำบลในอำเภอ (' + tambons.length + ' ตำบล)</option>';
+        tambons.forEach(function (t) {
+            if (!t || !t.name) return;
+            opts += '<option value="' + escHtml(t.name) + '">ตำบล' + escHtml(t.name) + '</option>';
+        });
+        sel.innerHTML = opts;
+        if (prev && Array.from(sel.options).some(function (o) { return o.value === prev; })) {
+            sel.value = prev;
+        }
+    }
+
+    function renderChiefPlanPanel() {
+        const hdr = document.getElementById('tv-chief-plan-header');
+        const body = document.getElementById('tv-chief-plan-body');
+        const listEl = document.getElementById('tv-chief-plan-list');
+        const toggleBtn = document.getElementById('btn-toggle-chief-list');
+        if (!hdr || !body || !listEl) return;
+        populateChiefRandomTambonSelect();
+
+        const chief = tvrLoadChiefPlan();
+        if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
+            hdr.innerHTML = '📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span>';
+            body.classList.add('hidden');
+            if (toggleBtn) toggleBtn.classList.add('hidden');
+            return;
+        }
+
+        const sorted = chief.items.slice().sort(function (a, b) {
+            const ia = tvrToIso(a.dateIso, a.dateParsed, a.dateDisplay, a.dateRaw) || '9999-99-99';
+            const ib = tvrToIso(b.dateIso, b.dateParsed, b.dateDisplay, b.dateRaw) || '9999-99-99';
+            return ia.localeCompare(ib);
+        });
+
+        hdr.innerHTML = '📌 แผนการลงพื้นที่ของเกษตรอำเภอ (<span class="text-violet-800">' + escHtml(chief.chiefName || 'เกษตรอำเภอ') + '</span>' +
+            (chief.monthHeader ? ' · ' + escHtml(chief.monthHeader) : '') +
+            ' · <b>' + sorted.length + ' รายการ</b>)';
+        body.classList.remove('hidden');
+        if (toggleBtn) {
+            toggleBtn.classList.remove('hidden');
+            toggleBtn.textContent = _chiefListCollapsed ? 'แสดงรายการ' : 'ซ่อนรายการ';
+        }
+        listEl.classList.toggle('hidden', _chiefListCollapsed);
+
+        listEl.innerHTML = sorted.map(function (it, idx) {
+            const dt = escHtml(it.dateDisplay || it.dateRaw || '-');
+            const act = escHtml(it.activity || it.detail || '-');
+            const loc = escHtml(String(it.locationRaw || '-').replace(/\n+/g, ' '));
+            return '<div class="px-2 py-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 hover:bg-violet-50/70">' +
+                '<span class="font-bold text-violet-900 shrink-0">' + (idx + 1) + '. ' + dt + '</span>' +
+                '<span class="text-slate-800 font-medium">' + act + '</span>' +
+                '<span class="text-violet-700 text-[10px]">📍 ' + loc + '</span>' +
+                '</div>';
+        }).join('');
+    }
+
+    function saveCurrentAsChiefPlan() {
+        const plan = tvrEnsurePlanItems();
+        if (!plan || !Array.isArray(plan.items) || !plan.items.length) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีแผน T&V ปัจจุบันให้บันทึก (กรุณาสร้างแผนหรือแนบไฟล์แผนก่อนครับ)');
+            return;
+        }
+        const meta = tvrGetFormMeta();
+        const posVal = (document.getElementById('in-position')?.value || '').trim();
+        const chiefName = (posVal.indexOf('เกษตรอำเภอ') !== -1 && meta.officerName && meta.officerName.indexOf('....') === -1)
+            ? meta.officerName
+            : (meta.bossName && meta.bossName.indexOf('....') === -1 ? meta.bossName : 'เกษตรอำเภอ');
+        tvrSaveChiefPlanSnapshot(plan, chiefName);
+        if (typeof global.showToast === 'function') global.showToast('💾 บันทึกแผนปัจจุบันเป็น "แผนเกษตรอำเภอ" เรียบร้อยแล้ว (' + plan.items.length + ' รายการ)');
+    }
+
+    function applyChiefPlan(mode) {
+        const chief = tvrLoadChiefPlan();
+        if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีแผนของเกษตรอำเภอที่บันทึกไว้ กรุณาให้เกษตรอำเภอสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ" ก่อนครับ');
+            return;
+        }
+        const cfg = getActiveOrgConfig();
+        const officeName = cfg.officeName || ('สำนักงานเกษตรอำเภอ' + (cfg.amphoe || 'สีดา'));
+        const allTambons = Array.isArray(cfg.tambons) && cfg.tambons.length ? cfg.tambons : [{ name: cfg.amphoe || 'สีดา', mooCount: 10 }];
+        const selTambonVal = document.getElementById('tv-chief-random-tambon')?.value || '__ALL__';
+        const poolTambons = (selTambonVal && selTambonVal !== '__ALL__')
+            ? allTambons.filter(function (t) { return t.name === selTambonVal; })
+            : allTambons;
+        const activePool = poolTambons.length ? poolTambons : allTambons;
+
+        let rr = Math.floor(Math.random() * 10);
+        const newItems = chief.items.map(function (src, idx) {
+            const copy = Object.assign({}, src, { seqNum: idx + 1 });
+            if (mode === 'random_tambon') {
+                const rawLoc = String(copy.locationRaw || '');
+                const rawAct = String(copy.activity || '') + ' ' + String(copy.category || '');
+                const isOffice = /สำนักงาน|สนง\.|DM|WM|ประจำสัปดาห์|TRAINING|ถ่ายทอดความรู้/i.test(rawLoc + ' ' + rawAct) && !copy.isFieldTrip;
+                if (isOffice) {
+                    copy.locationRaw = officeName;
+                    copy.isFieldTrip = false;
+                } else {
+                    const tam = activePool[(rr++) % activePool.length];
+                    const maxMoo = Math.max(1, parseInt(tam.mooCount, 10) || 10);
+                    const m1 = 1 + Math.floor(Math.random() * maxMoo);
+                    let m2 = 1 + Math.floor(Math.random() * maxMoo);
+                    if (maxMoo > 1 && m2 === m1) m2 = (m1 % maxMoo) + 1;
+                    const moos = (maxMoo > 1 && Math.random() > 0.35) ? [m1, m2].sort(function (a, b) { return a - b; }) : [m1];
+                    copy.locationRaw = 'หมู่ ' + moos.join(', ') + ' ตำบล' + tam.name;
+                    copy.isFieldTrip = true;
+                }
+            }
+            const resolved = resolveTvLocationRaw(copy.locationRaw || '');
+            copy.isFieldTrip = resolved.isFieldTrip;
+            copy.destOrder = resolved.destOrder;
+            copy.destText = resolved.destText;
+            copy.customStops = resolved.customStops;
+            copy.stops = resolved.stops;
+            copy.routeSummary = resolved.routeSummary;
+            return copy;
+        });
+
+        const newPlan = {
+            fileName: mode === 'random_tambon' ? 'linked_chief_random_tambon' : 'linked_chief_same_plan',
+            monthHeader: chief.monthHeader || '',
+            items: newItems
+        };
+        global.__tvPlanStore = newPlan;
+        try { localStorage.setItem(TVR_STORAGE_KEY, JSON.stringify(newPlan)); } catch (e) { /* ignore */ }
+        renderTvPlan();
+        renderTvReport(true);
+        refreshPlanLinkBanner();
+        if (typeof global.switchDocFilter === 'function') global.switchDocFilter('tvplan');
+        if (typeof global.showToast === 'function') {
+            global.showToast(mode === 'random_tambon'
+                ? '🎲 ลิงก์กิจกรรมตามแผนเกษตรอำเภอ + สุ่มสถานที่ใน' + (selTambonVal === '__ALL__' ? 'ทุกตำบล' : ('ตำบล' + selTambonVal)) + ' แล้ว (' + newItems.length + ' รายการ)'
+                : '🤝 คัดลอกแผนไปด้วยกันตามเกษตรอำเภอเรียบร้อยแล้ว (' + newItems.length + ' รายการ)');
+        }
     }
 
     function tvrBuildPlanDocumentHtml(mode) {
@@ -8645,14 +8846,19 @@ window.ORG = {
             };
         });
 
-        setTvPlanSendStatus('🚀 เริ่มส่งแผน ' + payloadItems.length + ' รายการ (ปีงบประมาณ พ.ศ. ' + fiscalYearBE + ' · เดือน ' + monthFull + ') ไปยัง tandv.doae.go.th...', 'info', true);
+        const isChiefOfficer = String(meta.officerPos || '').indexOf('เกษตรอำเภอ') !== -1;
+        const tvApproverName = isChiefOfficer
+            ? ((meta.officerName && meta.officerName.indexOf('....') === -1) ? meta.officerName : (meta.bossName || ''))
+            : (meta.bossName || '');
+
+        setTvPlanSendStatus('🚀 เริ่มส่งแผน ' + payloadItems.length + ' รายการ (ปีงบประมาณ พ.ศ. ' + fiscalYearBE + ' · เดือน ' + monthFull + ' · ผู้อนุมัติ: ' + (tvApproverName || '-') + (isChiefOfficer ? ' [ตัวเอง]' : '') + ') ไปยัง tandv.doae.go.th...', 'info', true);
         sendBotMessage({
             type: 'START_TV_SEND',
             jobId: 'tvjob_' + Date.now(),
             plan: {
                 fiscalYearBE: fiscalYearBE,
                 monthFull: monthFull,
-                approverName: meta.bossName || '',
+                approverName: tvApproverName,
                 items: payloadItems
             }
         });
@@ -8679,6 +8885,10 @@ window.ORG = {
 
     global.__tvReport = {
         refreshPlanLinkBanner: refreshPlanLinkBanner,
+        renderChiefPlanPanel: renderChiefPlanPanel,
+        saveCurrentAsChiefPlan: saveCurrentAsChiefPlan,
+        applyChiefPlan: applyChiefPlan,
+        toggleChiefList: toggleChiefList,
         render: renderTvReport,
         renderPlan: renderTvPlan,
         updatePlanField: updatePlanField,
@@ -8703,10 +8913,14 @@ window.ORG = {
     };
 
     if (typeof document !== 'undefined') {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initDohBotOnLoad);
-        } else {
+        const initAllTvPanels = function () {
             initDohBotOnLoad();
+            renderChiefPlanPanel();
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAllTvPanels);
+        } else {
+            initAllTvPanels();
         }
     }
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -10725,6 +10939,7 @@ const ORG = window.ORG || {};
                     '<div class="font-bold text-amber-900 mb-1">ℹ️ โหมดลงแผนและรายงานผล T&amp;V อย่างเดียว</div>' +
                     '<div class="text-[11px] mb-2"><b>' + escHtml(name) + '</b> (' + escHtml(personPositions[name] || 'เจ้าพนักงานธุรการ') + ') ไม่มีสิทธิเบิกเบี้ยเลี้ยง — ระบบตั้งค่าเบี้ยเลี้ยงเป็น <b>0 บาท</b> ให้อัตโนมัติ สามารถสร้างแผน, ส่งแผนเข้าเว็บ T&amp;V และพิมพ์รายงานผล T&amp;V ได้ตามปกติ</div>' +
                     '<div class="flex flex-wrap gap-1.5">' +
+                    '<button type="button" onclick="window.__tvReport?.applyChiefPlan?.(\'same\')" class="px-2 py-1 rounded bg-violet-700 hover:bg-violet-800 text-white text-[11px] font-semibold">🤝 ดึงแผนเกษตรอำเภอ (ไปด้วยกัน)</button>' +
                     '<button type="button" onclick="if(typeof switchDocFilter===\'function\') switchDocFilter(\'tvplan\')" class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-semibold">📅 เปิดแผนดำเนินงาน T&amp;V</button>' +
                     '<button type="button" onclick="if(typeof switchDocFilter===\'function\') switchDocFilter(\'tvreport\')" class="px-2 py-1 rounded bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold">📋 เปิดรายงานผล T&amp;V</button>' +
                     '</div>';
