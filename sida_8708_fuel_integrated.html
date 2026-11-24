@@ -4472,6 +4472,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="8708" onclick="switchDocFilter('8708')">8708</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="bg111" onclick="switchDocFilter('bg111')">บก.111</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="vehicle" onclick="switchDocFilter('vehicle')">หน้างบ+แผนที่</button>
+            <button type="button" class="doc-tab-btn text-xs font-semibold px-2.5 py-1.5 rounded border border-teal-500 bg-teal-50 text-teal-900" data-doc="tvreport" onclick="switchDocFilter('tvreport')">📋 รายงานผล T&amp;V</button>
+        </div>
+
+        <!-- มุมมองรายงานผลการปฏิบัติงาน T&V (แนวนอน A4 สัมพันธ์กับวันที่เบิก) -->
+        <div id="tv-report-view" class="no-print-hide w-full max-w-[1160px] mx-auto" style="display:none;">
+            <div class="no-print mb-3 p-3 rounded-xl bg-white border border-teal-200 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="font-bold text-teal-900">📋 รายงานผลการปฏิบัติงาน (T&amp;V System) — สัมพันธ์กับวันที่เบิก</span>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-700">
+                        <input type="checkbox" id="tvr-opt-meeting-done" checked onchange="window.__tvReport?.render(true)" class="rounded border-teal-500">
+                        <span>ติ๊กวันประชุม สนง. (DM/WM) = ดำเนินการ</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-700">
+                        <input type="checkbox" id="tvr-opt-only-done" onchange="window.__tvReport?.render(false)" class="rounded border-teal-500">
+                        <span>แสดงเฉพาะวันที่ดำเนินการ</span>
+                    </label>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button type="button" onclick="window.__tvReport?.render(true)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium">🔄 ซิงก์จากวันที่เบิก</button>
+                    <button type="button" onclick="window.__tvReport?.exportWord()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">📥 Word แนวนอน (.doc)</button>
+                    <button type="button" onclick="window.__tvReport?.printPdf()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-semibold shadow-sm">🖨️ พิมพ์ / PDF แนวนอน</button>
+                </div>
+            </div>
+            <div id="tv-report-meta-hint" class="no-print mb-2 text-[11px] text-slate-600 px-1">
+                💡 คลิกที่ช่อง <b>ดำเนินการ / ไม่ได้ดำเนินการ</b> เพื่อสลับเครื่องหมาย <b>√</b> ได้ทันที หรือคลิกพิมพ์แก้ไขข้อความในแต่ละช่องได้เลย
+            </div>
+            <div id="tv-report-paper" class="bg-white shadow-lg border border-slate-300 mx-auto p-6 overflow-x-auto" style="min-height:210mm; font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif; color:#000;"></div>
         </div>
         
         <div id="word-content">
@@ -6371,6 +6398,41 @@ window.ORG = {
             });
         }
 
+        // บันทึกข้อมูลแผน T&V ครบทุกแถว (เรียงตามลำดับเดิมในแผน) สำหรับรายงานผลการปฏิบัติงาน T&V
+        try {
+            const rawPlanRows = (_pendingPlan.items || []).slice().sort(function (a, b) {
+                return (a.seqNum || 0) - (b.seqNum || 0);
+            }).map(function (it) {
+                return {
+                    seqNum: it.seqNum || 0,
+                    category: String(it.category || '').replace(/^[\}\]\s]+/, '').trim(),
+                    activity: String(it.activity || it.detail || '').trim(),
+                    dateDisplay: it.dateDisplay || '',
+                    dateRaw: it.dateRaw || '',
+                    dateIso: it.dateIso || '',
+                    dateParsed: it.dateParsed ? {
+                        day: it.dateParsed.day,
+                        monthAbbr: it.dateParsed.monthAbbr,
+                        monthFull: it.dateParsed.monthFull,
+                        yearBE: it.dateParsed.yearBE
+                    } : null,
+                    locationRaw: String(it.locationRaw || '').trim(),
+                    targetCount: String(it.targetCount || '').trim(),
+                    isFieldTrip: !!it.isFieldTrip
+                };
+            });
+            global.__tvPlanStore = {
+                fileName: _pendingPlan.fileName || '',
+                officerName: _pendingPlan.officerName || '',
+                officerPosition: _pendingPlan.officerPosition || '',
+                approverName: _pendingPlan.approverName || '',
+                approverPosition: _pendingPlan.approverPosition || '',
+                monthHeader: _pendingPlan.monthHeader || '',
+                items: rawPlanRows
+            };
+            localStorage.setItem('form8708_tv_report_plan_v1', JSON.stringify(global.__tvPlanStore));
+        } catch (e) { /* ignore */ }
+
         const syncClaim = document.getElementById('in-sync-claim');
         if (syncClaim) syncClaim.checked = true;
         if (typeof global.syncRowsToSummaryAndTotals === 'function') global.syncRowsToSummaryAndTotals();
@@ -6378,6 +6440,7 @@ window.ORG = {
         if (typeof global.updateFwReview === 'function') global.updateFwReview();
         if (typeof global.updateAwNav === 'function') global.updateAwNav();
         if (typeof global.scheduleSave === 'function') global.scheduleSave();
+        if (global.__tvReport && typeof global.__tvReport.render === 'function') global.__tvReport.render(true);
 
         closeTvImportModal();
 
@@ -7056,6 +7119,370 @@ window.ORG = {
         setTimeout(function () { if (!_botState.connected) checkExtension(false); }, 800);
         setTimeout(function () { if (!_botState.connected) checkExtension(false); }, 2200);
     }
+
+    /* ==================== T&V Performance Report (A4 Landscape — Synced with Claimed Dates) ==================== */
+    const TVR_STORAGE_KEY = 'form8708_tv_report_plan_v1';
+    const TVR_EDITS_KEY = 'form8708_tv_report_edits_v1';
+    let _tvrRowsState = [];
+
+    function tvrNormDateKey(str) {
+        const s = String(str || '').replace(/[๐-๙]/g, function (c) {
+            return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
+        }).replace(/\s+/g, ' ').trim();
+        const m = s.match(/(\d{1,2})\s*([ก-ฮ]+\.?)\s*(\d{2,4})/);
+        if (!m) return s;
+        const d = parseInt(m[1], 10);
+        const mo = m[2].replace(/\.$/, '');
+        const y = m[3].length === 2 ? ('25' + m[3]) : m[3];
+        return d + '|' + mo + '|' + y;
+    }
+
+    function tvrFormatDateCell(dateParsed, dateDisplay, dateRaw) {
+        if (dateParsed && dateParsed.day && dateParsed.monthAbbr && dateParsed.yearBE) {
+            const dd = String(dateParsed.day).padStart(2, '0');
+            const mo = String(dateParsed.monthAbbr).replace(/\.$/, '');
+            const str = dd + ' ' + mo + ' ' + dateParsed.yearBE;
+            return str + '<br>-<br>' + str;
+        }
+        const s = String(dateDisplay || dateRaw || '').replace(/[๐-๙]/g, function (c) {
+            return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
+        }).trim();
+        const m = s.match(/(\d{1,2})\s*([ก-ฮ]+\.?)\s*(\d{2,4})/);
+        if (m) {
+            const dd = String(parseInt(m[1], 10)).padStart(2, '0');
+            const mo = m[2].replace(/\.$/, '');
+            const yr = m[3].length === 2 ? ('25' + m[3]) : m[3];
+            const str = dd + ' ' + mo + ' ' + yr;
+            return str + '<br>-<br>' + str;
+        }
+        return escH(s || '-');
+    }
+
+    function tvrGetFormMeta() {
+        const cfg = getActiveOrgConfig();
+        const nameSel = document.getElementById('in-name');
+        const nameCustom = document.getElementById('in-name-custom');
+        const officerName = (nameCustom && nameCustom.value.trim()) || (nameSel && nameSel.value.trim()) || '....................';
+        const officerPos = (document.getElementById('in-position')?.value || '').trim() || 'นักวิชาการส่งเสริมการเกษตรปฏิบัติการ';
+        const bossName = (document.getElementById('in-boss-name')?.value || document.getElementById('in-app-name')?.value || '').trim() || '....................................';
+        const bossPos = (document.getElementById('in-boss-pos')?.value || document.getElementById('in-app-pos')?.value || '').trim() || ('เกษตรอำเภอ' + cfg.amphoe);
+        const docMonth = (document.getElementById('in-doc-month')?.value || '').trim();
+        const docYear = (document.getElementById('in-doc-year')?.value || '').trim();
+        const depMy = (document.getElementById('in-dep-my')?.value || '').trim();
+        let monthYear = '';
+        if (depMy) {
+            const parts = depMy.split(/\s+/);
+            monthYear = parts.length >= 2 ? ('ประจำเดือน ' + parts[0] + ' พ.ศ. ' + parts[1]) : ('ประจำเดือน ' + depMy);
+        } else if (docMonth && docYear) {
+            monthYear = 'ประจำเดือน ' + docMonth + ' พ.ศ. ' + docYear;
+        } else {
+            monthYear = 'ประจำเดือน ........................ พ.ศ. ........';
+        }
+        return {
+            officerName: officerName,
+            officerPos: officerPos,
+            officeName: cfg.officeName,
+            province: cfg.province,
+            bossName: bossName,
+            bossPos: bossPos,
+            monthYear: monthYear
+        };
+    }
+
+    function tvrLoadPlan() {
+        if (global.__tvPlanStore && Array.isArray(global.__tvPlanStore.items) && global.__tvPlanStore.items.length) {
+            return global.__tvPlanStore;
+        }
+        try {
+            const raw = localStorage.getItem(TVR_STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.items) && parsed.items.length) {
+                    global.__tvPlanStore = parsed;
+                    return parsed;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function tvrLoadEdits() {
+        try {
+            const raw = localStorage.getItem(TVR_EDITS_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
+    }
+
+    function tvrSaveEdits(edits) {
+        try { localStorage.setItem(TVR_EDITS_KEY, JSON.stringify(edits)); } catch (e) { /* ignore */ }
+    }
+
+    function tvrBuildRows(forceSyncFromClaim) {
+        const edits = forceSyncFromClaim ? {} : tvrLoadEdits();
+        if (forceSyncFromClaim) tvrSaveEdits({});
+        const meetingDone = !!(document.getElementById('tvr-opt-meeting-done')?.checked);
+        const onlyDone = !!(document.getElementById('tvr-opt-only-done')?.checked);
+
+        // เก็บวันที่ทั้งหมดในตารางวันเดินทางที่เบิก (แบบ 8708)
+        const claimedDates = new Set();
+        const claimedRowsList = [];
+        document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r, idx) {
+            const dt = (r.querySelector('.day-date')?.value || '').trim();
+            const dest = (r.querySelector('.day-dest')?.value || '').trim();
+            if (!dt) return;
+            const k = tvrNormDateKey(dt);
+            claimedDates.add(k);
+            claimedRowsList.push({
+                seqNum: idx + 1,
+                dateDisplay: dt,
+                dateKey: k,
+                dest: dest
+            });
+        });
+
+        const plan = tvrLoadPlan();
+        let rows = [];
+
+        if (plan && Array.isArray(plan.items) && plan.items.length) {
+            rows = plan.items.map(function (it, idx) {
+                const dKey = tvrNormDateKey(it.dateDisplay || it.dateRaw);
+                const isClaimed = claimedDates.has(dKey);
+                const isMeeting = !it.isFieldTrip;
+                const defaultDone = isClaimed || (isMeeting && meetingDone);
+                const rowKey = 'p_' + (it.seqNum || (idx + 1)) + '_' + dKey;
+                const ed = edits[rowKey] || {};
+                const done = (typeof ed.done === 'boolean') ? ed.done : defaultDone;
+                return {
+                    key: rowKey,
+                    seq: it.seqNum || (idx + 1),
+                    category: (ed.category != null ? ed.category : (it.category || (isMeeting ? 'การถ่ายทอดความรู้ (TRAINING)' : 'การเยี่ยมเยียน (VISITING)'))).replace(/^[\}\]\s]+/, '').trim(),
+                    activity: ed.activity != null ? ed.activity : (it.activity || ''),
+                    done: done,
+                    result: ed.result != null ? ed.result : (done ? 'สำเร็จ' : ''),
+                    dateHtml: tvrFormatDateCell(it.dateParsed, it.dateDisplay, it.dateRaw),
+                    location: ed.location != null ? ed.location : (it.locationRaw || ''),
+                    targetCount: ed.targetCount != null ? ed.targetCount : (it.targetCount || ''),
+                    problem: ed.problem || '',
+                    solution: ed.solution || '',
+                    suggestion: ed.suggestion || ''
+                };
+            });
+        } else {
+            // กรณีไม่ได้นำเข้า .docx — สร้างจากวันที่เบิกในแบบ 8708 โดยตรง
+            const cfg = getActiveOrgConfig();
+            rows = claimedRowsList.map(function (cr, idx) {
+                const rowKey = 'c_' + (idx + 1) + '_' + cr.dateKey;
+                const ed = edits[rowKey] || {};
+                const done = (typeof ed.done === 'boolean') ? ed.done : true;
+                const cleanLoc = cr.dest
+                    .replace(new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), '')
+                    .trim() || cfg.officeName;
+                return {
+                    key: rowKey,
+                    seq: idx + 1,
+                    category: ed.category != null ? ed.category : 'การเยี่ยมเยียน (VISITING)',
+                    activity: ed.activity != null ? ed.activity : 'ปฏิบัติงานส่งเสริมการเกษตรในพื้นที่',
+                    done: done,
+                    result: ed.result != null ? ed.result : (done ? 'สำเร็จ' : ''),
+                    dateHtml: tvrFormatDateCell(null, cr.dateDisplay, cr.dateDisplay),
+                    location: ed.location != null ? ed.location : cleanLoc,
+                    targetCount: ed.targetCount != null ? ed.targetCount : '',
+                    problem: ed.problem || '',
+                    solution: ed.solution || '',
+                    suggestion: ed.suggestion || ''
+                };
+            });
+        }
+
+        if (onlyDone) {
+            rows = rows.filter(function (r) { return r.done; }).map(function (r, idx) {
+                return Object.assign({}, r, { seq: idx + 1 });
+            });
+        }
+        _tvrRowsState = rows;
+        return rows;
+    }
+
+    function tvrBuildDocumentHtml(forExport) {
+        const meta = tvrGetFormMeta();
+        const rows = _tvrRowsState.length ? _tvrRowsState : tvrBuildRows(false);
+        const ce = forExport ? '' : ' contenteditable="true" spellcheck="false"';
+
+        const thStyle = 'border:1px solid #000;padding:4px 5px;text-align:center;vertical-align:top;font-weight:700;font-size:15pt;line-height:1.15;';
+        const tdStyle = 'border:1px solid #000;padding:4px 5px;vertical-align:top;font-size:15pt;line-height:1.2;';
+
+        const bodyRowsHtml = rows.length ? rows.map(function (r, idx) {
+            const clickDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${idx}, true)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
+            const clickNotDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${idx}, false)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
+            const tdDoneAttr = forExport ? ` style="${tdStyle}text-align:center;"` : clickDone;
+            const tdNotAttr = forExport ? ` style="${tdStyle}text-align:center;"` : clickNotDone;
+            const editAttr = function (field) {
+                return forExport ? '' : (ce + ` onblur="window.__tvReport.updateField(${idx}, '${field}', this.innerText)"`);
+            };
+            return `<tr>
+                <td style="${tdStyle}text-align:center;">${r.seq}</td>
+                <td style="${tdStyle}"${editAttr('category')}>${escH(r.category)}</td>
+                <td style="${tdStyle}"${editAttr('activity')}>${escH(r.activity)}</td>
+                <td${tdDoneAttr}>${r.done ? '√' : ''}</td>
+                <td${tdNotAttr}>${!r.done ? '√' : ''}</td>
+                <td style="${tdStyle}text-align:center;"${editAttr('result')}>${escH(r.result)}</td>
+                <td style="${tdStyle}text-align:center;white-space:nowrap;">${r.dateHtml}</td>
+                <td style="${tdStyle}"${editAttr('location')}>${escH(r.location)}</td>
+                <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
+                <td style="${tdStyle}"${editAttr('problem')}>${escH(r.problem)}</td>
+                <td style="${tdStyle}"${editAttr('solution')}>${escH(r.solution)}</td>
+                <td style="${tdStyle}"${editAttr('suggestion')}>${escH(r.suggestion)}</td>
+            </tr>`;
+        }).join('') : `<tr><td colspan="12" style="${tdStyle}text-align:center;padding:16px;color:#64748b;">ยังไม่มีข้อมูลวันเดินทาง (กรุณานำเข้าแผน T&amp;V (.docx) หรือเพิ่มวันเดินทางในฟอร์มด้านซ้าย)</td></tr>`;
+
+        return `
+        <div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">
+            <div style="text-align:center;font-weight:700;font-size:17pt;line-height:1.35;margin-bottom:10px;">
+                <div>รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
+                <div>${escH(meta.officerName)}</div>
+                <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
+                <div>${escH(meta.monthYear)}</div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+                <colgroup>
+                    <col style="width:4%;">
+                    <col style="width:12%;">
+                    <col style="width:13%;">
+                    <col style="width:5%;">
+                    <col style="width:6%;">
+                    <col style="width:6%;">
+                    <col style="width:11%;">
+                    <col style="width:15%;">
+                    <col style="width:7%;">
+                    <col style="width:7%;">
+                    <col style="width:7%;">
+                    <col style="width:7%;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="${thStyle}">ลำดับ</th>
+                        <th rowspan="2" style="${thStyle}">ประเด็น</th>
+                        <th colspan="3" style="${thStyle}">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>
+                        <th rowspan="2" style="${thStyle}">ผล<br>ดำเนิน<br>งาน</th>
+                        <th rowspan="2" style="${thStyle}">วันที่<br>ดำเนินการ</th>
+                        <th rowspan="2" style="${thStyle}">สถานที่ดำเนินการ</th>
+                        <th rowspan="2" style="${thStyle}">จำนวน<br>บุคคล<br>เป้าหมาย<br>(ราย/<br>กลุ่ม)</th>
+                        <th rowspan="2" style="${thStyle}">ปัญหา<br>อุปสรรค</th>
+                        <th rowspan="2" style="${thStyle}">แนว<br>ทางแก้ไข</th>
+                        <th rowspan="2" style="${thStyle}">ข้อเสนอ<br>แนะ</th>
+                    </tr>
+                    <tr>
+                        <th style="${thStyle}">กิจกรรม</th>
+                        <th style="${thStyle}">ดำเนิน<br>การ</th>
+                        <th style="${thStyle}">ไม่ได้<br>ดำเนิน<br>การ</th>
+                    </tr>
+                </thead>
+                <tbody>${bodyRowsHtml}</tbody>
+            </table>
+
+            <table style="width:100%;border:none;border-collapse:collapse;margin-top:26px;page-break-inside:avoid;">
+                <tr>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.officerName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.bossName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>`;
+    }
+
+    function renderTvReport(forceSync) {
+        const paper = document.getElementById('tv-report-paper');
+        if (!paper) return;
+        tvrBuildRows(!!forceSync);
+        paper.innerHTML = tvrBuildDocumentHtml(false);
+    }
+
+    function toggleTvReportDone(idx, setDone) {
+        const row = _tvrRowsState[idx];
+        if (!row) return;
+        const edits = tvrLoadEdits();
+        const cur = edits[row.key] || {};
+        cur.done = !!setDone;
+        cur.result = setDone ? (cur.result || 'สำเร็จ') : '';
+        edits[row.key] = cur;
+        tvrSaveEdits(edits);
+        renderTvReport(false);
+    }
+
+    function updateTvReportField(idx, field, val) {
+        const row = _tvrRowsState[idx];
+        if (!row) return;
+        const edits = tvrLoadEdits();
+        const cur = edits[row.key] || {};
+        cur[field] = String(val || '').trim();
+        edits[row.key] = cur;
+        tvrSaveEdits(edits);
+        row[field] = cur[field];
+    }
+
+    function exportTvReportWord() {
+        tvrBuildRows(false);
+        const meta = tvrGetFormMeta();
+        const bodyHtml = tvrBuildDocumentHtml(true);
+        const html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>" +
+            "<head><meta charset='utf-8'><title>รายงานผลการปฏิบัติงาน T&V</title>" +
+            "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->" +
+            "<style>" +
+            "@page WordSection1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 34pt 28pt 34pt 28pt; }" +
+            "div.WordSection1 { page: WordSection1; }" +
+            "body, table, td, th, div { font-family: 'TH SarabunIT๙', 'TH SarabunPSK', 'TH Sarabun New', sans-serif !important; mso-ascii-font-family: 'TH SarabunIT๙'; mso-hansi-font-family: 'TH SarabunIT๙'; mso-bidi-font-family: 'TH SarabunIT๙'; }" +
+            "thead { display: table-header-group; }" +
+            "tr { page-break-inside: avoid; }" +
+            "</style></head><body><div class='WordSection1'>" + bodyHtml + "</div></body></html>";
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = ('รายงานผล_TV_' + meta.officerName).replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]+/g, '_');
+        a.download = safeName + '.doc';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+        if (typeof global.showToast === 'function') global.showToast('ดาวน์โหลด Word รายงานผล T&V (แนวนอน A4) เรียบร้อยแล้ว');
+    }
+
+    function printTvReportPdf() {
+        tvrBuildRows(false);
+        const bodyHtml = tvrBuildDocumentHtml(true);
+        const w = window.open('', '_blank', 'width=1150,height=780');
+        if (!w) {
+            if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อสั่งพิมพ์/บันทึก PDF แนวนอน');
+            return;
+        }
+        w.document.open();
+        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>รายงานผลการปฏิบัติงาน T&V</title><style>' +
+            '@page { size: A4 landscape; margin: 12mm 10mm; }' +
+            'body { margin: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; }' +
+            'thead { display: table-header-group; } tr { page-break-inside: avoid; }' +
+            '</style></head><body>' + bodyHtml + '</body></html>');
+        w.document.close();
+        setTimeout(function () { w.focus(); w.print(); }, 350);
+    }
+
+    global.__tvReport = {
+        render: renderTvReport,
+        toggleDone: toggleTvReportDone,
+        updateField: updateTvReportField,
+        exportWord: exportTvReportWord,
+        printPdf: printTvReportPdf
+    };
 
     if (typeof document !== 'undefined') {
         if (document.readyState === 'loading') {
@@ -8511,10 +8938,25 @@ const ORG = window.ORG || {};
             mode = 'all';
             showToast('ยังไม่มีวันเบิกน้ำมัน — แสดงทั้งหมด / พิมพ์ 8708 ได้');
         }
-        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle');
+        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle', 'filter-tvreport');
         if (mode === '8708') document.body.classList.add('filter-8708');
         else if (mode === 'bg111') document.body.classList.add('filter-bg111');
         else if (mode === 'vehicle') document.body.classList.add('filter-vehicle');
+        else if (mode === 'tvreport') document.body.classList.add('filter-tvreport');
+
+        const wc = document.getElementById('word-content');
+        const tvr = document.getElementById('tv-report-view');
+        if (mode === 'tvreport') {
+            if (wc) wc.style.display = 'none';
+            if (tvr) tvr.style.display = '';
+            if (window.__tvReport && typeof window.__tvReport.render === 'function') {
+                window.__tvReport.render(false);
+            }
+        } else {
+            if (wc) wc.style.display = '';
+            if (tvr) tvr.style.display = 'none';
+        }
+
         document.querySelectorAll('.doc-tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-doc') === mode);
         });

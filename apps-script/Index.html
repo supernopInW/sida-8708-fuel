@@ -3966,6 +3966,33 @@
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="8708" onclick="switchDocFilter('8708')">8708</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="bg111" onclick="switchDocFilter('bg111')">บก.111</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="vehicle" onclick="switchDocFilter('vehicle')">หน้างบ+แผนที่</button>
+            <button type="button" class="doc-tab-btn text-xs font-semibold px-2.5 py-1.5 rounded border border-teal-500 bg-teal-50 text-teal-900" data-doc="tvreport" onclick="switchDocFilter('tvreport')">📋 รายงานผล T&amp;V</button>
+        </div>
+
+        <!-- มุมมองรายงานผลการปฏิบัติงาน T&V (แนวนอน A4 สัมพันธ์กับวันที่เบิก) -->
+        <div id="tv-report-view" class="no-print-hide w-full max-w-[1160px] mx-auto" style="display:none;">
+            <div class="no-print mb-3 p-3 rounded-xl bg-white border border-teal-200 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="font-bold text-teal-900">📋 รายงานผลการปฏิบัติงาน (T&amp;V System) — สัมพันธ์กับวันที่เบิก</span>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-700">
+                        <input type="checkbox" id="tvr-opt-meeting-done" checked onchange="window.__tvReport?.render(true)" class="rounded border-teal-500">
+                        <span>ติ๊กวันประชุม สนง. (DM/WM) = ดำเนินการ</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-700">
+                        <input type="checkbox" id="tvr-opt-only-done" onchange="window.__tvReport?.render(false)" class="rounded border-teal-500">
+                        <span>แสดงเฉพาะวันที่ดำเนินการ</span>
+                    </label>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button type="button" onclick="window.__tvReport?.render(true)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium">🔄 ซิงก์จากวันที่เบิก</button>
+                    <button type="button" onclick="window.__tvReport?.exportWord()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">📥 Word แนวนอน (.doc)</button>
+                    <button type="button" onclick="window.__tvReport?.printPdf()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-semibold shadow-sm">🖨️ พิมพ์ / PDF แนวนอน</button>
+                </div>
+            </div>
+            <div id="tv-report-meta-hint" class="no-print mb-2 text-[11px] text-slate-600 px-1">
+                💡 คลิกที่ช่อง <b>ดำเนินการ / ไม่ได้ดำเนินการ</b> เพื่อสลับเครื่องหมาย <b>√</b> ได้ทันที หรือคลิกพิมพ์แก้ไขข้อความในแต่ละช่องได้เลย
+            </div>
+            <div id="tv-report-paper" class="bg-white shadow-lg border border-slate-300 mx-auto p-6 overflow-x-auto" style="min-height:210mm; font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif; color:#000;"></div>
         </div>
         
         <div id="word-content">

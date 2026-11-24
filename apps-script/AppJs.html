@@ -1442,10 +1442,25 @@ const ORG = window.ORG || {};
             mode = 'all';
             showToast('ยังไม่มีวันเบิกน้ำมัน — แสดงทั้งหมด / พิมพ์ 8708 ได้');
         }
-        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle');
+        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle', 'filter-tvreport');
         if (mode === '8708') document.body.classList.add('filter-8708');
         else if (mode === 'bg111') document.body.classList.add('filter-bg111');
         else if (mode === 'vehicle') document.body.classList.add('filter-vehicle');
+        else if (mode === 'tvreport') document.body.classList.add('filter-tvreport');
+
+        const wc = document.getElementById('word-content');
+        const tvr = document.getElementById('tv-report-view');
+        if (mode === 'tvreport') {
+            if (wc) wc.style.display = 'none';
+            if (tvr) tvr.style.display = '';
+            if (window.__tvReport && typeof window.__tvReport.render === 'function') {
+                window.__tvReport.render(false);
+            }
+        } else {
+            if (wc) wc.style.display = '';
+            if (tvr) tvr.style.display = 'none';
+        }
+
         document.querySelectorAll('.doc-tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-doc') === mode);
         });
