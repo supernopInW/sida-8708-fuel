@@ -3062,6 +3062,98 @@
         { category: 'การจัดการข้อมูล (DATA MANAGEMENT)', activity: 'ด้านข้อมูลสารสนเทศ', detail: 'ขึ้นทะเบียน ปรับปรุงทะเบียนเกษตรกร และรายงานข้อมูลสารสนเทศด้านพืช', target: '50', checked: true }
     ];
 
+    const TVB_FIXED_THAI_HOLIDAYS = {
+        1: [1],
+        4: [6, 13, 14, 15],
+        5: [4],
+        6: [3],
+        7: [28],
+        8: [12],
+        10: [13, 23],
+        12: [5, 10, 31]
+    };
+    let _tvbHolidaySet = new Set();
+    let _tvbLastCalKey = '';
+
+    function renderBuilderHolidayCalendar(forceResetDefaults) {
+        const calHost = document.getElementById('tvb-holiday-calendar');
+        const sumHost = document.getElementById('tvb-holiday-summary');
+        const hid = document.getElementById('tvb-holidays');
+        if (!calHost) return;
+        const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
+        const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
+        const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const calKey = yearBE + '-' + month;
+        if (forceResetDefaults || calKey !== _tvbLastCalKey) {
+            _tvbLastCalKey = calKey;
+            _tvbHolidaySet = new Set(TVB_FIXED_THAI_HOLIDAYS[month] || []);
+        }
+
+        const daysInMonth = new Date(yearCE, month, 0).getDate();
+        const firstDow = new Date(yearCE, month - 1, 1).getDay();
+        const dNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+        let html = dNames.map(function (dn, i) {
+            const cls = (i === 0 || i === 6) ? 'text-rose-600 font-bold pb-1' : 'text-slate-600 font-bold pb-1';
+            return `<div class="${cls}">${dn}</div>`;
+        }).join('');
+
+        for (let b = 0; b < firstDow; b++) {
+            html += '<div></div>';
+        }
+
+        let meetCount = 0;
+        let fieldCount = 0;
+        const includeMeetings = !!(document.getElementById('tvb-include-meetings')?.checked);
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dow = new Date(yearCE, month - 1, d).getDay();
+            const isWknd = (dow === 0 || dow === 6);
+            const isHol = _tvbHolidaySet.has(d);
+            if (isWknd) {
+                html += `<div class="py-1 rounded bg-slate-100 text-slate-400 select-none" title="เสาร์-อาทิตย์ (หยุดอัตโนมัติ)">${d}</div>`;
+            } else {
+                if (!isHol) {
+                    if (dow === 1 && includeMeetings) meetCount++;
+                    else fieldCount++;
+                }
+                const btnCls = isHol
+                    ? 'py-1 rounded bg-rose-600 text-white font-bold shadow-sm cursor-pointer hover:bg-rose-700'
+                    : (dow === 1 && includeMeetings
+                        ? 'py-1 rounded bg-indigo-50 text-indigo-800 border border-indigo-200 font-semibold cursor-pointer hover:bg-rose-100'
+                        : 'py-1 rounded bg-emerald-50/70 text-emerald-900 border border-emerald-200 font-medium cursor-pointer hover:bg-rose-100');
+                const title = isHol ? 'วันหยุดราชการ/วันลา (คลิกเพื่อยกเลิก)' : (dow === 1 && includeMeetings ? 'วันประชุม สนง. (คลิกเพื่อติ๊กเป็นวันหยุด)' : 'วันออกพื้นที่ (คลิกเพื่อติ๊กเป็นวันหยุด)');
+                html += `<button type="button" onclick="window.__tvReport?.toggleBuilderHoliday(${d})" class="${btnCls}" title="${title}">${d}${isHol ? '✕' : ''}</button>`;
+            }
+        }
+        calHost.innerHTML = html;
+
+        const sortedHols = Array.from(_tvbHolidaySet).filter(function (d) {
+            if (d < 1 || d > daysInMonth) return false;
+            const dw = new Date(yearCE, month - 1, d).getDay();
+            return dw !== 0 && dw !== 6;
+        }).sort(function (a, b) { return a - b; });
+        if (hid) hid.value = sortedHols.join(', ');
+        if (sumHost) {
+            const holText = sortedHols.length
+                ? ('<span class="text-rose-700 font-semibold">วันหยุดที่ติ๊ก: วันที่ ' + sortedHols.join(', ') + ' (' + sortedHols.length + ' วัน)</span>')
+                : '<span class="text-slate-500">ยังไม่ได้ติ๊กวันหยุดราชการเพิ่ม</span>';
+            sumHost.innerHTML = holText + ' · <span class="text-indigo-800 font-semibold">ประชุม สนง. ' + meetCount + ' วัน</span> · <span class="text-emerald-800 font-semibold">ออกพื้นที่ ' + fieldCount + ' วัน</span>';
+        }
+    }
+
+    function toggleBuilderHoliday(dayNum) {
+        const d = parseInt(dayNum, 10);
+        if (!d) return;
+        if (_tvbHolidaySet.has(d)) _tvbHolidaySet.delete(d);
+        else _tvbHolidaySet.add(d);
+        renderBuilderHolidayCalendar(false);
+    }
+
+    function clearBuilderHolidays() {
+        _tvbHolidaySet.clear();
+        renderBuilderHolidayCalendar(false);
+    }
+
     function openBuilderModal() {
         const modal = document.getElementById('tv-builder-modal');
         if (!modal) return;
@@ -3073,6 +3165,7 @@
         const mIdx = mNames.indexOf(curDocM);
         if (mSel && mIdx > 0) mSel.value = String(mIdx);
         if (yEl && curDocY) yEl.value = curDocY;
+        renderBuilderHolidayCalendar(false);
 
         // เติมรายชื่อตำบลของอำเภอปัจจุบัน
         const tamHost = document.getElementById('tvb-tambon-list');
@@ -3277,6 +3370,9 @@
         exportPlanWord: exportPlanWord,
         openBuilderModal: openBuilderModal,
         closeBuilderModal: closeBuilderModal,
+        renderBuilderHolidayCalendar: renderBuilderHolidayCalendar,
+        toggleBuilderHoliday: toggleBuilderHoliday,
+        clearBuilderHolidays: clearBuilderHolidays,
         generateFromBuilder: generateFromBuilder,
         sortPlanByCategory: sortPlanByCategory,
         toggleDone: toggleTvReportDone,

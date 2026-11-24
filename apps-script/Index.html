@@ -5114,10 +5114,10 @@ window.ORG = {
             <button type="button" onclick="window.__tvReport?.closeBuilderModal()" class="text-white/80 hover:text-white font-bold px-2">✕</button>
         </div>
         <div class="p-4 space-y-3 text-xs text-slate-800 overflow-y-auto">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <div>
                     <label for="tvb-month" class="block font-semibold text-slate-700 mb-1">ประจำเดือน</label>
-                    <select id="tvb-month" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
+                    <select id="tvb-month" onchange="window.__tvReport?.renderBuilderHolidayCalendar()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
                         <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option>
                         <option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
                         <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option>
@@ -5126,11 +5126,16 @@ window.ORG = {
                 </div>
                 <div>
                     <label for="tvb-year" class="block font-semibold text-slate-700 mb-1">ปี พ.ศ.</label>
-                    <input type="number" id="tvb-year" value="2569" min="2560" max="2600" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
+                    <input type="number" id="tvb-year" value="2569" min="2560" max="2600" onchange="window.__tvReport?.renderBuilderHolidayCalendar()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
                 </div>
-                <div>
-                    <label for="tvb-holidays" class="block font-semibold text-slate-700 mb-1">วันหยุดนักขัตฤกษ์ (คั่นด้วย ,)</label>
-                    <input type="text" id="tvb-holidays" placeholder="เช่น 5, 10 (เว้น ส.-อา. ให้อัตโนมัติ)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs bg-white outline-none focus:border-indigo-500">
+                <div class="sm:col-span-2">
+                    <div class="flex flex-wrap items-center justify-between gap-1 mb-1.5">
+                        <span class="font-semibold text-slate-700">🗓️ คลิกติ๊กวันหยุดราชการ / วันหยุดชดเชย / วันลา (เสาร์–อาทิตย์เว้นให้อัตโนมัติ)</span>
+                        <button type="button" onclick="window.__tvReport?.clearBuilderHolidays()" class="text-[11px] underline text-slate-500 hover:text-rose-700">ล้างวันหยุดที่ติ๊ก</button>
+                    </div>
+                    <div id="tvb-holiday-calendar" class="grid grid-cols-7 gap-1 text-center text-[11px] bg-white p-2 rounded-lg border border-slate-200"></div>
+                    <div id="tvb-holiday-summary" class="mt-1.5 text-[11px] text-slate-600"></div>
+                    <input type="hidden" id="tvb-holidays" value="">
                 </div>
             </div>
 
