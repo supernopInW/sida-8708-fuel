@@ -603,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.2.0', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
+    sendResponse({ ok: true, version: '1.2.1', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
     return false;
   }
 
@@ -923,7 +923,20 @@ async function runTvSendJob(job) {
           }
         }
 
-        return { ok: sentCount > 0, sentCount: sentCount, total: items.length, errors: errors };
+        let tempSaved = false;
+        if (sentCount > 0) {
+          // กดเฉพาะปุ่ม "บันทึกชั่วคราว" (#wf-btn-temp-save) เท่านั้น — ห้ามกดปุ่ม "บันทึกและส่งข้อมูล" (#wf-btn-save) เด็ดขาด!
+          const saveStepEl = document.getElementById('SAVE_STEP');
+          if (saveStepEl) saveStepEl.value = 'Y';
+          const tempSaveBtn = document.getElementById('wf-btn-temp-save');
+          if (tempSaveBtn) {
+            await delay(500);
+            tempSaveBtn.click();
+            tempSaved = true;
+          }
+        }
+
+        return { ok: sentCount > 0, sentCount: sentCount, total: items.length, tempSaved: tempSaved, errors: errors };
       }
     });
 
@@ -935,8 +948,10 @@ async function runTvSendJob(job) {
         jobId: job.jobId,
         sentCount: out.sentCount,
         total: out.total,
+        tempSaved: !!out.tempSaved,
         errors: out.errors || [],
-        message: '✅ ส่งแผนเข้าเว็บ T&V แล้ว ' + out.sentCount + '/' + out.total + ' รายการ — กรุณาตรวจทานและกด "บันทึกชั่วคราว" หรือ "บันทึกและส่งข้อมูล" ในแท็บ T&V ครับ'
+        message: '✅ ส่งแผนเข้าเว็บ T&V แล้ว ' + out.sentCount + '/' + out.total + ' รายการ' +
+          (out.tempSaved ? ' และกด "บันทึกชั่วคราว" เรียบร้อยแล้ว (ยังไม่ได้ส่งอนุมัติ)' : ' — กรุณาตรวจทานและกด "บันทึกชั่วคราว" ในแท็บ T&V ครับ')
       });
     } else {
       sendToApp(job, {
