@@ -603,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.1.0', name: 'DOH Auto-Bot (แบบ 8708 ทุกอำเภอ)' });
+    sendResponse({ ok: true, version: '1.2.0', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
     return false;
   }
 
@@ -651,5 +651,305 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
 
+  if (msg.type === 'START_TV_SEND') {
+    const job = {
+      jobId: msg.jobId || ('tvjob_' + Date.now()),
+      appTabId: sender && sender.tab ? sender.tab.id : null,
+      appFrameId: sender && typeof sender.frameId === 'number' ? sender.frameId : undefined,
+      plan: msg.plan || {}
+    };
+    sendResponse({ ok: true, jobId: job.jobId });
+    runTvSendJob(job);
+    return false;
+  }
+
   return false;
 });
+
+/* ==================== T&V DOAE Work Plan Auto-Sender (tandv.doae.go.th) ==================== */
+const TANDV_START_URL = 'https://tandv.doae.go.th/workflow/workflow_start.php?W=26';
+
+function waitTabReady(tabId, timeoutMs = 25000) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(tmr);
+      chrome.tabs.onUpdated.removeListener(onUpd);
+      setTimeout(resolve, 600);
+    };
+    const tmr = setTimeout(finish, timeoutMs);
+    const onUpd = (id, info) => {
+      if (id === tabId && info.status === 'complete') finish();
+    };
+    chrome.tabs.onUpdated.addListener(onUpd);
+    chrome.tabs.get(tabId).then((t) => {
+      if (t && t.status === 'complete') finish();
+    }).catch(() => finish());
+  });
+}
+
+async function runTvSendJob(job) {
+  try {
+    sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: 'กำลังเปิดหน้าบันทึกแผน T&V (tandv.doae.go.th)...' });
+    const existing = await chrome.tabs.query({ url: 'https://tandv.doae.go.th/workflow/workflow_start.php*' });
+    let tabId;
+    if (existing && existing.length > 0) {
+      tabId = existing[0].id;
+      await chrome.tabs.update(tabId, { active: true });
+      if (existing[0].status !== 'complete') await waitTabReady(tabId, 20000);
+    } else {
+      const created = await chrome.tabs.create({ url: TANDV_START_URL, active: true });
+      tabId = created.id;
+      await waitTabReady(tabId, 25000);
+    }
+
+    const tabInfo = await chrome.tabs.get(tabId);
+    const curUrl = (tabInfo && tabInfo.url) || '';
+    if (!/tandv\.doae\.go\.th\/workflow\/workflow_start\.php/i.test(curUrl)) {
+      await chrome.tabs.update(tabId, { active: true });
+      sendToApp(job, {
+        type: 'TV_SEND_AUTH_REQUIRED',
+        jobId: job.jobId,
+        url: curUrl,
+        message: 'กรุณาเข้าสู่ระบบ DOAE Pass / เว็บ T&V ในแท็บที่เปิดขึ้นมาให้เรียบร้อยก่อน แล้วกลับมากดส่งแผนอีกครั้งครับ'
+      });
+      return;
+    }
+
+    sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: 'กำลังตั้งค่าปีงบประมาณ เดือน ผู้อนุมัติ และกรอกรายการแผนทีละแถว...' });
+
+    const execRes = await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      world: 'MAIN',
+      args: [job.plan],
+      func: async (planArg) => {
+        const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+        const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const setSelect2 = (selEl, val) => {
+          if (!selEl) return false;
+          selEl.value = val;
+          try {
+            if (window.jQuery) {
+              window.jQuery(selEl).val(val).trigger('change');
+              return true;
+            }
+          } catch (e) {}
+          selEl.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        };
+        const waitFor = async (fn, timeoutMs = 12000, stepMs = 250) => {
+          const start = Date.now();
+          while (Date.now() - start < timeoutMs) {
+            const v = fn();
+            if (v) return v;
+            await delay(stepMs);
+          }
+          return null;
+        };
+
+        const items = Array.isArray(planArg && planArg.items) ? planArg.items : [];
+        if (!items.length) return { ok: false, error: 'ไม่มีรายการแผนที่จะส่ง' };
+
+        // 1. เลือกปีงบประมาณ (PL_YAER), เดือน (PL_MOUNT), และผู้อนุมัติ (USR_APPROVERS)
+        const fiscalYear = String(planArg.fiscalYearBE || '');
+        const monthFull = String(planArg.monthFull || '').trim();
+        const approverName = String(planArg.approverName || '').trim();
+
+        const yrEl = document.getElementById('PL_YAER');
+        if (yrEl && fiscalYear) {
+          const yrOpt = Array.from(yrEl.options).find((o) => String(o.value).trim() === fiscalYear || o.text.includes(fiscalYear));
+          if (yrOpt) {
+            setSelect2(yrEl, yrOpt.value);
+            await delay(900);
+          }
+        }
+
+        if (monthFull) {
+          const moOpt = await waitFor(() => {
+            const moEl = document.getElementById('PL_MOUNT');
+            if (!moEl) return null;
+            return Array.from(moEl.options).find((o) => o.value && o.text.includes(monthFull)) || null;
+          }, 8000);
+          if (moOpt) {
+            setSelect2(document.getElementById('PL_MOUNT'), moOpt.value);
+            await delay(700);
+          }
+        }
+
+        const appEl = document.getElementById('USR_APPROVERS');
+        if (appEl) {
+          let appOpt = approverName
+            ? Array.from(appEl.options).find((o) => o.value && o.text.includes(approverName))
+            : null;
+          if (!appOpt) appOpt = Array.from(appEl.options).find((o) => o.value && !o.disabled);
+          if (appOpt) {
+            setSelect2(appEl, appOpt.value);
+            await delay(400);
+          }
+        }
+
+        const mapIssueCode = (cat) => {
+          const c = norm(cat);
+          if (c.includes('training') || c.includes('ถ่ายทอด')) return '1';
+          if (c.includes('supporting') || c.includes('สนับสนุน')) return '3';
+          if (c.includes('supervision') || c.includes('นิเทศ')) return '4';
+          if (c.includes('data') || c.includes('ข้อมูล')) return '5';
+          return '2';
+        };
+
+        let sentCount = 0;
+        const errors = [];
+
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          try {
+            const addBtn = document.querySelector('a[onclick*="form_mgt.php"]');
+            if (!addBtn) throw new Error('ไม่พบปุ่ม "+ เพิ่มข้อมูล" บนหน้าแผน T&V');
+            addBtn.click();
+
+            const form = await waitFor(() => {
+              const f = document.getElementById('form_wf_mgt');
+              if (!f) return null;
+              const issueSel = f.querySelector('#PD_ISSUES');
+              return (issueSel && issueSel.options && issueSel.options.length > 1) ? f : null;
+            }, 12000);
+            if (!form) throw new Error('เปิดหน้าต่างเพิ่มรายการไม่สำเร็จ');
+
+            // 1) ประเด็น
+            const issueCode = mapIssueCode(it.category);
+            const issueSel = form.querySelector('#PD_ISSUES');
+            setSelect2(issueSel, issueCode);
+            await delay(700);
+
+            // 2) กิจกรรม (รอ AJAX โหลด option)
+            const actSel = await waitFor(() => {
+              const s = form.querySelector('#PD_ACTIVITY');
+              return (s && s.options && s.options.length > 1) ? s : null;
+            }, 8000);
+            if (actSel) {
+              const actText = String(it.activity || '').trim();
+              const isOtherPrefix = /^อื่นๆ\s*:?/i.test(actText);
+              const cleanAct = norm(actText.replace(/^อื่นๆ\s*:?\s*/i, ''));
+              let chosen = null;
+              if (!isOtherPrefix && cleanAct) {
+                chosen = Array.from(actSel.options).find((o) => o.value && norm(o.text) === cleanAct)
+                  || Array.from(actSel.options).find((o) => o.value && o.value !== '999' && (norm(o.text).includes(cleanAct) || cleanAct.includes(norm(o.text))));
+              }
+              if (!chosen) {
+                chosen = Array.from(actSel.options).find((o) => o.value === '999') || Array.from(actSel.options).find((o) => o.value);
+              }
+              if (chosen) {
+                setSelect2(actSel, chosen.value);
+                await delay(450);
+                if (chosen.value === '999') {
+                  const otherInp = form.querySelector('input[name*="OTHER"], input[id*="OTHER"], input[name*="ETC"], input[id*="ETC"]');
+                  if (otherInp) {
+                    otherInp.value = actText.replace(/^อื่นๆ\s*:?\s*/i, '').trim() || actText;
+                    otherInp.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                }
+              }
+            }
+
+            // 3) รายละเอียด, วันที่เริ่ม-สิ้นสุด, สถานที่, เป้าหมาย, หมายเหตุ
+            const detEl = form.querySelector('#PD_DETAIL');
+            if (detEl) {
+              detEl.value = String(it.detail || it.activity || '').trim();
+              detEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            const sDateEl = form.querySelector('#PD_SDATE');
+            const eDateEl = form.querySelector('#PD_EDATE');
+            if (sDateEl && it.dateDMY) {
+              sDateEl.disabled = false;
+              sDateEl.removeAttribute('disabled');
+              sDateEl.value = it.dateDMY;
+              sDateEl.dispatchEvent(new Event('input', { bubbles: true }));
+              sDateEl.dispatchEvent(new Event('change', { bubbles: true }));
+              if (window.jQuery) { try { window.jQuery(sDateEl).val(it.dateDMY).trigger('change'); } catch (e) {} }
+              await delay(300);
+            }
+            if (eDateEl && it.dateDMY) {
+              eDateEl.disabled = false;
+              eDateEl.removeAttribute('disabled');
+              eDateEl.value = it.dateDMY;
+              eDateEl.dispatchEvent(new Event('input', { bubbles: true }));
+              eDateEl.dispatchEvent(new Event('change', { bubbles: true }));
+              if (window.jQuery) { try { window.jQuery(eDateEl).val(it.dateDMY).trigger('change'); } catch (e) {} }
+            }
+
+            const placeEl = form.querySelector('#PD_PLACE');
+            if (placeEl) {
+              placeEl.value = String(it.location || '').replace(/\n+/g, ' ').trim();
+              placeEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            const targetEl = form.querySelector('#PD_TARGET');
+            if (targetEl) {
+              const numOnly = String(it.targetCount || '0').replace(/[^\d]/g, '') || '0';
+              targetEl.value = numOnly;
+              targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+              targetEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            const cmtEl = form.querySelector('#PD_COMMENT');
+            if (cmtEl && it.note) {
+              cmtEl.value = String(it.note || '').trim();
+              cmtEl.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            // 4) กดปุ่มบันทึกใน Modal (บันทึกรายการย่อยเข้าตาราง ไม่กดส่งอนุมัติหลัก)
+            const saveBtn = form.querySelector('button[type="submit"]');
+            if (!saveBtn) throw new Error('ไม่พบปุ่มบันทึกในหน้าต่างเพิ่มรายการ');
+            saveBtn.disabled = false;
+            saveBtn.removeAttribute('disabled');
+            saveBtn.click();
+
+            // รอ Modal ปิดหรือโหลดเสร็จ
+            await delay(1300);
+            await waitFor(() => {
+              const m = document.getElementById('bizModal_402');
+              return !m || !m.classList.contains('show') || m.style.display === 'none';
+            }, 8000);
+            await delay(400);
+            sentCount++;
+          } catch (rowErr) {
+            errors.push('#' + (i + 1) + ': ' + (rowErr && rowErr.message ? rowErr.message : String(rowErr)));
+            const closeBtn = document.querySelector('#bizModal_402 button.close-modal');
+            if (closeBtn) closeBtn.click();
+            await delay(400);
+          }
+        }
+
+        return { ok: sentCount > 0, sentCount: sentCount, total: items.length, errors: errors };
+      }
+    });
+
+    const out = execRes && execRes[0] && execRes[0].result ? execRes[0].result : { ok: false, error: 'ไม่ได้รับผลลัพธ์จากหน้า T&V' };
+    await chrome.tabs.update(tabId, { active: true });
+    if (out.ok) {
+      sendToApp(job, {
+        type: 'TV_SEND_DONE',
+        jobId: job.jobId,
+        sentCount: out.sentCount,
+        total: out.total,
+        errors: out.errors || [],
+        message: '✅ ส่งแผนเข้าเว็บ T&V แล้ว ' + out.sentCount + '/' + out.total + ' รายการ — กรุณาตรวจทานและกด "บันทึกชั่วคราว" หรือ "บันทึกและส่งข้อมูล" ในแท็บ T&V ครับ'
+      });
+    } else {
+      sendToApp(job, {
+        type: 'TV_SEND_ERROR',
+        jobId: job.jobId,
+        error: out.error || (out.errors && out.errors.join('; ')) || 'ส่งแผนเข้าเว็บ T&V ไม่สำเร็จ'
+      });
+    }
+  } catch (err) {
+    sendToApp(job, {
+      type: 'TV_SEND_ERROR',
+      jobId: job.jobId,
+      error: (err && err.message) ? err.message : String(err)
+    });
+  }
+}

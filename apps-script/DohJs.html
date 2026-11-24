@@ -3375,6 +3375,98 @@
         if (typeof global.showToast === 'function') global.showToast('เรียงแผนตามหมวด T&V (DM/WM → เยี่ยมเยียน → ข้อมูล) เรียบร้อยแล้ว');
     }
 
+    function setTvPlanSendStatus(msg, tone) {
+        const el = document.getElementById('tv-plan-send-status');
+        if (!el) return;
+        if (!msg) { el.classList.add('hidden'); return; }
+        el.classList.remove('hidden', 'bg-sky-50', 'border-sky-300', 'text-sky-900', 'bg-emerald-50', 'border-emerald-300', 'text-emerald-900', 'bg-amber-50', 'border-amber-300', 'text-amber-950', 'bg-rose-50', 'border-rose-300', 'text-rose-900');
+        if (tone === 'ok') el.classList.add('bg-emerald-50', 'border-emerald-300', 'text-emerald-900');
+        else if (tone === 'warn') el.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-950');
+        else if (tone === 'err') el.classList.add('bg-rose-50', 'border-rose-300', 'text-rose-900');
+        else el.classList.add('bg-sky-50', 'border-sky-300', 'text-sky-900');
+        el.textContent = msg;
+    }
+
+    function sendPlanToTvWeb() {
+        const plan = tvrEnsurePlanItems();
+        if (!plan || !Array.isArray(plan.items) || !plan.items.length) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีรายการแผนดำเนินงานที่จะส่ง (กรุณากด "✨ สร้างแผน T&V อัตโนมัติ" ก่อนครับ)');
+            return;
+        }
+        if (!_botState.connected) {
+            openInstallModal();
+            if (typeof global.showToast === 'function') global.showToast('กรุณาติดตั้ง/อัปเดตส่วนเสริม DOH Auto-Bot (v1.2.0) เพื่อส่งแผนเข้าเว็บ tandv.doae.go.th อัตโนมัติครับ');
+            return;
+        }
+
+        const meta = tvrGetFormMeta();
+        const mFullMap = {
+            'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3, 'เมษายน': 4, 'พฤษภาคม': 5, 'มิถุนายน': 6,
+            'กรกฎาคม': 7, 'สิงหาคม': 8, 'กันยายน': 9, 'ตุลาคม': 10, 'พฤศจิกายน': 11, 'ธันวาคม': 12
+        };
+        let monthFull = '';
+        let yearBE = 2569;
+        const firstP = plan.items[0] && plan.items[0].dateParsed;
+        if (firstP && firstP.monthFull) {
+            monthFull = firstP.monthFull;
+            yearBE = firstP.yearBE || 2569;
+        } else {
+            const m = String(meta.monthYear || '').match(/ประจำเดือน\s+([ก-ฮ]+)\s+พ\.ศ\.\s*(\d{4})/);
+            if (m) { monthFull = m[1]; yearBE = parseInt(m[2], 10) || 2569; }
+        }
+        const mNum = mFullMap[monthFull] || 11;
+        // ปีงบประมาณไทย: ต.ค. (10), พ.ย. (11), ธ.ค. (12) = พ.ศ. + 1
+        const fiscalYearBE = (mNum >= 10) ? (yearBE + 1) : yearBE;
+
+        const payloadItems = plan.items.map(function (it) {
+            const p = it.dateParsed || parseThaiDateCell(it.dateDisplay || it.dateRaw);
+            const dd = p && p.day ? String(p.day).padStart(2, '0') : '01';
+            const moNum = (p && p.monthFull && mFullMap[p.monthFull]) ? mFullMap[p.monthFull] : mNum;
+            const mm = String(moNum).padStart(2, '0');
+            const yy = (p && p.yearBE) ? String(p.yearBE) : String(yearBE);
+            return {
+                category: it.category || '',
+                activity: it.activity || '',
+                detail: it.detail || it.activity || '',
+                dateDMY: dd + '/' + mm + '/' + yy,
+                location: it.locationRaw || '',
+                targetCount: it.targetCount || '0',
+                note: it.note || ''
+            };
+        });
+
+        setTvPlanSendStatus('🚀 กำลังส่งแผน ' + payloadItems.length + ' รายการไปยังเว็บ T&V (tandv.doae.go.th)...', 'info');
+        sendBotMessage({
+            type: 'START_TV_SEND',
+            jobId: 'tvjob_' + Date.now(),
+            plan: {
+                fiscalYearBE: fiscalYearBE,
+                monthFull: monthFull,
+                approverName: meta.bossName || '',
+                items: payloadItems
+            }
+        });
+    }
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('message', function (ev) {
+            const d = ev && ev.data;
+            if (!d || d.channel !== 'SIDA_DOH_BOT_FROM_EXT') return;
+            if (d.type === 'TV_SEND_PROGRESS') {
+                setTvPlanSendStatus('⏳ ' + (d.message || 'กำลังส่งแผนเข้าเว็บ T&V...'), 'info');
+            } else if (d.type === 'TV_SEND_AUTH_REQUIRED') {
+                setTvPlanSendStatus('🔐 ' + (d.message || 'กรุณาเข้าสู่ระบบ DOAE Pass / T&V ก่อน แล้วกดส่งแผนอีกครั้ง'), 'warn');
+                if (typeof global.showToast === 'function') global.showToast(d.message || 'กรุณาล็อกอินเว็บ T&V ก่อน');
+            } else if (d.type === 'TV_SEND_DONE') {
+                setTvPlanSendStatus(d.message || '✅ ส่งแผนเข้าเว็บ T&V เรียบร้อยแล้ว', 'ok');
+                if (typeof global.showToast === 'function') global.showToast(d.message || '✅ ส่งแผนเข้าเว็บ T&V เรียบร้อยแล้ว');
+            } else if (d.type === 'TV_SEND_ERROR') {
+                setTvPlanSendStatus('❌ ' + (d.error || 'ส่งแผนไม่สำเร็จ'), 'err');
+                if (typeof global.showToast === 'function') global.showToast('ส่งแผนไม่สำเร็จ: ' + (d.error || ''));
+            }
+        });
+    }
+
     global.__tvReport = {
         render: renderTvReport,
         renderPlan: renderTvPlan,
@@ -3382,6 +3474,7 @@
         addPlanRow: addPlanRow,
         deletePlanRow: deletePlanRow,
         syncPlanToClaim8708: syncPlanToClaim8708,
+        sendPlanToTvWeb: sendPlanToTvWeb,
         exportPlanWord: exportPlanWord,
         openBuilderModal: openBuilderModal,
         closeBuilderModal: closeBuilderModal,
