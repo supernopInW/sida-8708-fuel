@@ -4054,6 +4054,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                             <option value="เกษตรอำเภอ">เกษตรอำเภอ</option>
                         </select>
                     </div>
+                    <div id="person-tvonly-banner" class="hidden mb-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-950 leading-relaxed"></div>
                     <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">สังกัด</label><input type="text" id="in-dept" value="สำนักงานเกษตรอำเภอสีดา" onchange="onDirectAreaInputChange()" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-teal-600"></div>
                     <div class="mb-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50/70" data-fw-hide-in-wizard>
                         <div class="text-xs font-semibold text-emerald-950 mb-1">พื้นที่สำนักงาน (รองรับทุกอำเภอทั่วประเทศ)</div>
@@ -5035,7 +5036,8 @@ window.ORG = {
 
   /** รายชื่อผู้เดินทาง (dropdown) — เพิ่มชื่อเต็มพร้อมคำนำหน้าได้ */
   people: [
-    { name: "นายนพฤทธิ์ น้อยเล็น", position: "นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" }
+    { name: "นายนพฤทธิ์ น้อยเล็น", position: "นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" },
+    { name: "นางสาวหนึ่งนภา ปัจจัยโย", position: "เจ้าพนักงานธุรการ", tvOnly: true }
   ],
 
   /** ตำแหน่งที่มีในรายการเลือก */
@@ -10053,6 +10055,13 @@ const ORG = window.ORG || {};
         });
         return map;
     })();
+    const personTvOnly = (function () {
+        const map = {};
+        (ORG.people || []).forEach(function (p) {
+            if (p && p.name && p.tvOnly) map[p.name] = true;
+        });
+        return map;
+    })();
 
     
     
@@ -10693,6 +10702,48 @@ const ORG = window.ORG || {};
         }
     }
 
+    function applyPersonTvOnlyMode(name) {
+        const isTvOnly = !!(name && personTvOnly[name]);
+        const banner = document.getElementById('person-tvonly-banner');
+        const rateClaimEl = document.getElementById('in-rate-claim');
+        const syncClaimEl = document.getElementById('in-sync-claim');
+        const allowTotalEl = document.getElementById('in-allowance-total');
+        const rateTextEl = document.getElementById('in-rate-text');
+
+        if (isTvOnly) {
+            if (syncClaimEl) syncClaimEl.checked = false;
+            if (rateClaimEl) {
+                rateClaimEl.value = '0';
+                rateClaimEl.dataset.manual = '1';
+                rateClaimEl.dataset.tvOnlyZero = '1';
+            }
+            if (allowTotalEl) allowTotalEl.value = '0';
+            if (rateTextEl && typeof toThaiBahtText === 'function') rateTextEl.value = toThaiBahtText(0);
+            if (banner) {
+                banner.classList.remove('hidden');
+                banner.innerHTML =
+                    '<div class="font-bold text-amber-900 mb-1">ℹ️ โหมดลงแผนและรายงานผล T&amp;V อย่างเดียว</div>' +
+                    '<div class="text-[11px] mb-2"><b>' + escHtml(name) + '</b> (' + escHtml(personPositions[name] || 'เจ้าพนักงานธุรการ') + ') ไม่มีสิทธิเบิกเบี้ยเลี้ยง — ระบบตั้งค่าเบี้ยเลี้ยงเป็น <b>0 บาท</b> ให้อัตโนมัติ สามารถสร้างแผน, ส่งแผนเข้าเว็บ T&amp;V และพิมพ์รายงานผล T&amp;V ได้ตามปกติ</div>' +
+                    '<div class="flex flex-wrap gap-1.5">' +
+                    '<button type="button" onclick="if(typeof switchDocFilter===\'function\') switchDocFilter(\'tvplan\')" class="px-2 py-1 rounded bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-semibold">📅 เปิดแผนดำเนินงาน T&amp;V</button>' +
+                    '<button type="button" onclick="if(typeof switchDocFilter===\'function\') switchDocFilter(\'tvreport\')" class="px-2 py-1 rounded bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-semibold">📋 เปิดรายงานผล T&amp;V</button>' +
+                    '</div>';
+            }
+            if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+        } else {
+            if (banner) {
+                banner.classList.add('hidden');
+                banner.innerHTML = '';
+            }
+            if (rateClaimEl && rateClaimEl.dataset.tvOnlyZero === '1') {
+                rateClaimEl.dataset.tvOnlyZero = '0';
+                rateClaimEl.dataset.manual = '0';
+                if (syncClaimEl) syncClaimEl.checked = true;
+                if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+            }
+        }
+    }
+
     function onPersonChange() {
         const name = document.getElementById('in-name').value;
         const customEl = document.getElementById('in-name-custom');
@@ -10704,6 +10755,7 @@ const ORG = window.ORG || {};
             const opt = Array.from(pos.options).find(o => o.value === personPositions[name]);
             if (opt) pos.value = personPositions[name];
         }
+        applyPersonTvOnlyMode(name);
         if (typeof onBudgetProfileChange === 'function') onBudgetProfileChange('person');
         updatePreview();
         scheduleSave();
