@@ -3039,7 +3039,7 @@
                 return isScreen ? (` contenteditable="true" spellcheck="false" onblur="window.__tvReport.updatePlanField(${r.idx}, '${field}', this.innerText)"`) : '';
             };
             const delBtn = isScreen ? `<div class="no-print" style="margin-top:4px;"><button type="button" onclick="window.__tvReport.deletePlanRow(${r.idx})" style="font-size:10px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 5px;cursor:pointer;" title="ลบแถวนี้">ลบ</button></div>` : '';
-            const dateCellContent = isScreen ? escH(r.dateRawText) : r.dateHtml;
+            const dateCellContent = r.dateHtml;
             const locCellContent = tvrFormatLocationHtml(r.location);
             return `<tr>
                 <td style="${tdStyle}text-align:center;">${r.seq}${delBtn}</td>
