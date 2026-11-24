@@ -7243,7 +7243,7 @@ window.ORG = {
         const s = String(dateDisplay || dateRaw || '').replace(/[๐-๙]/g, function (c) {
             return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
         }).trim();
-        const m = s.match(/(\d{1,2})\s*([ก-ฮ]+\.?)\s*(\d{2,4})/);
+        const m = s.match(/(\d{1,2})\s*([ก-ฮ\.]+)\s*(\d{2,4})/);
         if (m) {
             const d = String(parseInt(m[1], 10));
             const moBase = m[2].replace(/\.$/, '');
@@ -7599,7 +7599,7 @@ window.ORG = {
                 <td${tdDoneAttr}>${r.done ? '√' : ''}</td>
                 <td${tdNotAttr}>${!r.done ? '√' : ''}</td>
                 <td style="${tdStyle}text-align:center;"${editAttr('result')}>${escH(r.result)}</td>
-                <td style="${tdStyle}text-align:center;white-space:nowrap;">${r.dateHtml}</td>
+                <td style="${tdStyle}text-align:center;">${r.dateHtml}</td>
                 <td style="${tdStyle}"${editAttr('location')}>${tvrFormatLocationHtml(r.location)}</td>
                 <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
                 <td style="${tdStyle}"${editAttr('problem')}>${escH(r.problem)}</td>
