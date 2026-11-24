@@ -3044,6 +3044,229 @@
         setTimeout(function () { w.focus(); w.print(); }, 350);
     }
 
+    /* ==================== Built-in T&V Monthly Plan Generator ==================== */
+    const TVB_STANDARD_ACTIVITIES = [
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Smart Farmer / Young Smart Farmer', detail: 'ติดตามเยี่ยมเยียนและพัฒนาศักยภาพ Smart Farmer / YSF', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'วิสาหกิจชุมชน', detail: 'ส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', target: '15', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'ศพก.', detail: 'ติดตามเยี่ยมเยียนศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'พัฒนาคุณภาพสินค้าเกษตร', detail: 'ส่งเสริมและยกระดับคุณภาพมาตรฐานสินค้าเกษตร (GAP)', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', detail: 'ติดตามเฝ้าระวังศัตรูพืชและสนับสนุนงาน ศจช.', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', detail: 'ให้คำแนะนำการจัดการดินปุ๋ยและการใช้ปุ๋ยตามค่าวิเคราะห์ดิน (ศดปช.)', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรอินทรีย์', detail: 'ตรวจติดตามและส่งเสริมการผลิตเกษตรอินทรีย์', target: '5', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', detail: 'รณรงค์หยุดเผาในพื้นที่การเกษตรและจัดการเศษวัสดุการเกษตร', target: '30', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', detail: 'เยี่ยมเยียนและพัฒนาความเข้มแข็งองค์กรเกษตรกร', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Zoning by Agri-Map', detail: 'ติดตามปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรแปลงใหญ่', detail: 'ติดตามเยี่ยมเยียนและบริหารจัดการแปลงใหญ่เพื่อเพิ่มผลิตภาพการผลิต', target: '30', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', detail: 'จัดทำแผนพัฒนาและขับเคลื่อนการเกษตรระดับหมู่บ้าน', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', detail: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชในพื้นที่', target: '10', checked: false },
+        { category: 'การจัดการข้อมูล (DATA MANAGEMENT)', activity: 'ด้านข้อมูลสารสนเทศ', detail: 'ขึ้นทะเบียน ปรับปรุงทะเบียนเกษตรกร และรายงานข้อมูลสารสนเทศด้านพืช', target: '50', checked: true }
+    ];
+
+    function openBuilderModal() {
+        const modal = document.getElementById('tv-builder-modal');
+        if (!modal) return;
+        const mNames = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        const curDocM = (document.getElementById('in-doc-month')?.value || '').trim();
+        const curDocY = (document.getElementById('in-doc-year')?.value || '').replace(/[๐-๙]/g, function (c) { return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c)); }).replace(/\D+/g, '');
+        const mSel = document.getElementById('tvb-month');
+        const yEl = document.getElementById('tvb-year');
+        const mIdx = mNames.indexOf(curDocM);
+        if (mSel && mIdx > 0) mSel.value = String(mIdx);
+        if (yEl && curDocY) yEl.value = curDocY;
+
+        // เติมรายชื่อตำบลของอำเภอปัจจุบัน
+        const tamHost = document.getElementById('tvb-tambon-list');
+        if (tamHost) {
+            const org = global.ORG || {};
+            const cfg = getActiveOrgConfig();
+            let tambons = Array.isArray(org.tambons) && org.tambons.length
+                ? org.tambons
+                : (global.TH_AREA && global.TH_AREA.data && global.TH_AREA.data[cfg.province] && global.TH_AREA.data[cfg.province][cfg.amphoe]) || [];
+            tambons = tambons.map(function (t) {
+                if (typeof t === 'string') return { name: t, mooCount: 10 };
+                return { name: t.name, mooCount: t.mooCount || 10 };
+            }).filter(function (t) { return !!t.name; });
+            if (!tambons.length) tambons = [{ name: cfg.officeTambon || cfg.amphoe, mooCount: 10 }];
+            tamHost.innerHTML = tambons.map(function (t, i) {
+                return `<label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-emerald-300 cursor-pointer hover:bg-emerald-50">
+                    <input type="checkbox" class="tvb-tambon-chk rounded border-emerald-500" data-name="${escAttrSafe(t.name)}" data-moos="${t.mooCount}" ${i === 0 ? 'checked' : ''}>
+                    <span class="font-medium text-emerald-950">ต.${escH(t.name)} <span class="text-[10px] text-slate-500">(${t.mooCount} หมู่)</span></span>
+                </label>`;
+            }).join('');
+        }
+
+        // เติมคลังกิจกรรมมาตรฐาน T&V
+        const actHost = document.getElementById('tvb-activity-list');
+        if (actHost && !actHost.children.length) {
+            actHost.innerHTML = TVB_STANDARD_ACTIVITIES.map(function (a, i) {
+                return `<label class="flex items-start gap-1.5 p-1.5 rounded bg-white border border-amber-200 cursor-pointer hover:bg-amber-50/70">
+                    <input type="checkbox" class="tvb-act-chk mt-0.5 rounded border-amber-500" data-idx="${i}" ${a.checked ? 'checked' : ''}>
+                    <span class="leading-tight"><b class="text-slate-800">${escH(a.activity)}</b> <span class="text-[10px] text-slate-500">(${escH(a.target)} ราย)</span></span>
+                </label>`;
+            }).join('');
+        }
+        modal.hidden = false;
+    }
+
+    function closeBuilderModal() {
+        const modal = document.getElementById('tv-builder-modal');
+        if (modal) modal.hidden = true;
+    }
+
+    function generateFromBuilder(alsoSyncClaim) {
+        const month = parseInt(document.getElementById('tvb-month')?.value || '11', 10);
+        const yearBE = parseInt(document.getElementById('tvb-year')?.value || '2569', 10);
+        const yearCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        const holidayRaw = (document.getElementById('tvb-holidays')?.value || '');
+        const holidays = new Set((holidayRaw.match(/\d+/g) || []).map(function (x) { return parseInt(x, 10); }));
+        const includeMeetings = !!(document.getElementById('tvb-include-meetings')?.checked);
+        const meetingCount = String(document.getElementById('tvb-meeting-count')?.value || '7').trim() || '7';
+        const mooPerDay = parseInt(document.getElementById('tvb-moo-per-day')?.value || '3', 10);
+
+        const selTambons = Array.from(document.querySelectorAll('#tvb-tambon-list .tvb-tambon-chk:checked')).map(function (el) {
+            return { name: el.getAttribute('data-name') || '', mooCount: parseInt(el.getAttribute('data-moos') || '10', 10) || 10 };
+        }).filter(function (t) { return !!t.name; });
+        const selActs = Array.from(document.querySelectorAll('#tvb-activity-list .tvb-act-chk:checked')).map(function (el) {
+            return TVB_STANDARD_ACTIVITIES[parseInt(el.getAttribute('data-idx'), 10)];
+        }).filter(Boolean);
+
+        if (!selTambons.length) {
+            if (typeof global.showToast === 'function') global.showToast('กรุณาเลือกอย่างน้อย 1 ตำบลครับ');
+            return;
+        }
+        if (!selActs.length) {
+            if (typeof global.showToast === 'function') global.showToast('กรุณาเลือกอย่างน้อย 1 กิจกรรมครับ');
+            return;
+        }
+
+        const mAbbr = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const mFull = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+        const daysInMonth = new Date(yearCE, month, 0).getDate();
+        const cfg = getActiveOrgConfig();
+        const shortOffice = cfg.isSida ? 'สนง.กษอ.สีดา' : cfg.officeName;
+
+        const meetingDays = [];
+        const fieldDays = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            if (holidays.has(d)) continue;
+            const dow = new Date(yearCE, month - 1, d).getDay();
+            if (dow === 0 || dow === 6) continue; // เว้น เสาร์-อาทิตย์
+            const y2 = String(yearBE).slice(-2);
+            const dateDisplay = d + ' ' + mAbbr[month] + ' ' + y2;
+            const dateIso = String(yearCE).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+            const dateParsed = { day: d, monthAbbr: mAbbr[month], monthFull: mFull[month], yearBE: yearBE };
+            if (dow === 1 && includeMeetings) {
+                meetingDays.push({ day: d, dateDisplay: dateDisplay, dateIso: dateIso, dateParsed: dateParsed });
+            } else {
+                fieldDays.push({ day: d, dateDisplay: dateDisplay, dateIso: dateIso, dateParsed: dateParsed });
+            }
+        }
+
+        const builtItems = [];
+        // 1. หมวด TRAINING (DM / WM วันจันทร์)
+        meetingDays.forEach(function (md, idx) {
+            const isDm = (idx === 0);
+            builtItems.push({
+                seqNum: builtItems.length + 1,
+                category: 'การถ่ายทอดความรู้ (TRAINING)',
+                activity: isDm ? 'District Meeting : DM' : 'Weekly Meeting : WM',
+                detail: isDm ? 'ประชุมสนง.กษอ.\nประจำเดือน (DM)' : 'ประชุมสนง.กษอ.\nประจำสัปดาห์ (WM)',
+                dateDisplay: md.dateDisplay,
+                dateRaw: md.dateDisplay,
+                dateIso: md.dateIso,
+                dateParsed: md.dateParsed,
+                locationRaw: shortOffice,
+                targetCount: meetingCount,
+                note: '',
+                isFieldTrip: false
+            });
+        });
+
+        // 2. แยกกิจกรรม VISITING กับ DATA MANAGEMENT แล้วกระจายตามวันออกพื้นที่และหมู่บ้าน
+        const visitingActs = selActs.filter(function (a) { return a.category.indexOf('DATA') === -1; });
+        const dataActs = selActs.filter(function (a) { return a.category.indexOf('DATA') !== -1; });
+        const orderedFieldActs = visitingActs.length ? visitingActs : selActs;
+        let mooCursor = 0;
+
+        const fieldEntries = fieldDays.map(function (fd, idx) {
+            const isLastAndHasData = (dataActs.length > 0 && idx === fieldDays.length - 1);
+            const actObj = isLastAndHasData ? dataActs[0] : orderedFieldActs[idx % orderedFieldActs.length];
+            const tam = selTambons[idx % selTambons.length];
+            const countThisDay = Math.min(tam.mooCount, Math.max(2, (mooPerDay === 3 ? (idx % 2 === 0 ? 2 : 3) : mooPerDay)));
+            const chosenMoos = [];
+            for (let k = 0; k < countThisDay; k++) {
+                const mNo = ((mooCursor + k) % tam.mooCount) + 1;
+                if (chosenMoos.indexOf(mNo) === -1) chosenMoos.push(mNo);
+            }
+            mooCursor += countThisDay;
+            chosenMoos.sort(function (a, b) { return a - b; });
+            return {
+                category: actObj.category,
+                activity: actObj.activity,
+                detail: actObj.detail,
+                dateDisplay: fd.dateDisplay,
+                dateRaw: fd.dateDisplay,
+                dateIso: fd.dateIso,
+                dateParsed: fd.dateParsed,
+                locationRaw: 'หมู่ ' + chosenMoos.join(', ') + ' ตำบล' + tam.name,
+                targetCount: actObj.target,
+                note: '',
+                isFieldTrip: true
+            };
+        });
+
+        // เรียง VISITING ก่อน แล้วตามด้วย DATA MANAGEMENT (เหมือนรูปแบบกรมฯ)
+        fieldEntries.filter(function (x) { return x.category.indexOf('DATA') === -1; }).forEach(function (x) {
+            builtItems.push(Object.assign({ seqNum: builtItems.length + 1 }, x));
+        });
+        fieldEntries.filter(function (x) { return x.category.indexOf('DATA') !== -1; }).forEach(function (x) {
+            builtItems.push(Object.assign({ seqNum: builtItems.length + 1 }, x));
+        });
+
+        tvrSavePlanStore({
+            fileName: 'generated_tv_plan_' + month + '_' + yearBE,
+            monthHeader: 'ประจำเดือน ' + mFull[month] + ' พ.ศ. ' + yearBE,
+            items: builtItems
+        });
+
+        // อัปเดตเดือน/ปีเอกสารให้ตรงกันด้วย
+        const docMonthEl = document.getElementById('in-doc-month');
+        const docYearEl = document.getElementById('in-doc-year');
+        const docDayEl = document.getElementById('in-doc-day');
+        if (docMonthEl) docMonthEl.value = mFull[month];
+        if (docYearEl) docYearEl.value = String(yearBE);
+        if (docDayEl) docDayEl.value = String(daysInMonth);
+
+        closeBuilderModal();
+        renderTvPlan();
+        renderTvReport(true);
+        if (alsoSyncClaim) {
+            syncPlanToClaim8708();
+        } else if (typeof global.showToast === 'function') {
+            global.showToast('✨ สร้างแผน T&V ประจำเดือน' + mFull[month] + ' ' + yearBE + ' จำนวน ' + builtItems.length + ' รายการเรียบร้อยแล้ว!');
+        }
+    }
+
+    function sortPlanByCategory() {
+        const plan = tvrEnsurePlanItems();
+        const rank = function (cat) {
+            if (cat.indexOf('TRAINING') !== -1 || cat.indexOf('ถ่ายทอด') !== -1) return 1;
+            if (cat.indexOf('DATA') !== -1 || cat.indexOf('ข้อมูล') !== -1) return 3;
+            return 2;
+        };
+        plan.items.sort(function (a, b) {
+            const ra = rank(a.category || '');
+            const rb = rank(b.category || '');
+            if (ra !== rb) return ra - rb;
+            return (a.dateIso || '9999-99-99').localeCompare(b.dateIso || '9999-99-99');
+        });
+        plan.items.forEach(function (it, i) { it.seqNum = i + 1; });
+        tvrSavePlanStore(plan);
+        renderTvPlan();
+        renderTvReport(false);
+        if (typeof global.showToast === 'function') global.showToast('เรียงแผนตามหมวด T&V (DM/WM → เยี่ยมเยียน → ข้อมูล) เรียบร้อยแล้ว');
+    }
+
     global.__tvReport = {
         render: renderTvReport,
         renderPlan: renderTvPlan,
@@ -3052,6 +3275,10 @@
         deletePlanRow: deletePlanRow,
         syncPlanToClaim8708: syncPlanToClaim8708,
         exportPlanWord: exportPlanWord,
+        openBuilderModal: openBuilderModal,
+        closeBuilderModal: closeBuilderModal,
+        generateFromBuilder: generateFromBuilder,
+        sortPlanByCategory: sortPlanByCategory,
         toggleDone: toggleTvReportDone,
         updateField: updateTvReportField,
         exportWord: exportTvReportWord,
