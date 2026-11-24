@@ -7811,9 +7811,94 @@ window.ORG = {
         setTimeout(doPrint, 900);
     }
 
-    function printTvReportPdf() {
+    async function tvrExportHtmlToPdfDirect(bodyHtml, opts) {
+        const jsPDFCtor = (global.jspdf && global.jspdf.jsPDF) || global.jsPDF;
+        if (typeof global.html2canvas !== 'function' || typeof jsPDFCtor !== 'function') {
+            return false;
+        }
+        const orientation = (opts && opts.orientation) || 'landscape';
+        const pageSelector = (opts && opts.pageSelector) || '.tvr-page';
+        const fileName = ((opts && opts.fileName) || 'document').replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]+/g, '_');
+        const isLand = orientation === 'landscape';
+        const marginX = isLand ? 8 : 12;
+        const marginY = isLand ? 10 : 12;
+        const stagePx = isLand ? 1060 : 720;
+
+        if (typeof global.showToast === 'function') global.showToast('📄 กำลังสร้างไฟล์ PDF โดยตรง (ไม่ต้องรอเครื่องปริ้นท์)...');
+
+        const stage = document.createElement('div');
+        stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:' + stagePx + 'px;background:#ffffff;color:#000000;padding:0;margin:0;box-sizing:border-box;font-family:"TH SarabunIT๙","TH SarabunPSK","TH Sarabun New",sans-serif;z-index:-1;';
+        stage.innerHTML = bodyHtml;
+        document.body.appendChild(stage);
+
+        try {
+            if (document.fonts && document.fonts.ready) {
+                try { await document.fonts.ready; } catch (e) { /* ignore */ }
+            }
+            const imgs = Array.from(stage.querySelectorAll('img'));
+            await Promise.all(imgs.map(function (im) {
+                if (im.complete) return Promise.resolve();
+                return new Promise(function (res) {
+                    im.onload = res; im.onerror = res;
+                    setTimeout(res, 3000);
+                });
+            }));
+            await new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); });
+
+            let pageEls = Array.from(stage.querySelectorAll(pageSelector));
+            if (!pageEls.length) pageEls = [stage];
+
+            const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: orientation, compress: true });
+            const pageW = pdf.internal.pageSize.getWidth();
+            const pageH = pdf.internal.pageSize.getHeight();
+            const maxW = pageW - marginX * 2;
+            const maxH = pageH - marginY * 2;
+
+            for (let i = 0; i < pageEls.length; i++) {
+                if (typeof global.showToast === 'function') global.showToast('📄 กำลังสร้าง PDF หน้า ' + (i + 1) + '/' + pageEls.length + '...');
+                const el = pageEls[i];
+                const canvas = await global.html2canvas(el, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    imageTimeout: 0,
+                    windowWidth: stagePx + 40
+                });
+                const imgData = canvas.toDataURL('image/jpeg', 0.94);
+                let drawW = maxW;
+                let drawH = (canvas.height * drawW) / canvas.width;
+                if (drawH > maxH) {
+                    const ratio = maxH / drawH;
+                    drawH = maxH;
+                    drawW = drawW * ratio;
+                }
+                const offsetX = marginX + (maxW - drawW) / 2;
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', offsetX, marginY, drawW, drawH, undefined, 'FAST');
+            }
+            pdf.save(fileName + '.pdf');
+            if (typeof global.showToast === 'function') global.showToast('✅ ดาวน์โหลด ' + fileName + '.pdf (' + pageEls.length + ' หน้า) เรียบร้อยแล้ว!');
+            return true;
+        } catch (err) {
+            console.error('Direct PDF export error:', err);
+            return false;
+        } finally {
+            stage.remove();
+        }
+    }
+
+    async function printTvReportPdf() {
         tvrBuildRows(false);
+        const meta = tvrGetFormMeta();
         const bodyHtml = tvrBuildDocumentHtml('print');
+        const ok = await tvrExportHtmlToPdfDirect(bodyHtml, {
+            orientation: 'landscape',
+            pageSelector: '.tvr-page',
+            fileName: 'รายงานผล_TV_' + (meta.officerName || 'report')
+        });
+        if (ok) return;
         const w = window.open('', '_blank', 'width=1150,height=780');
         if (!w) {
             if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อสั่งพิมพ์/บันทึก PDF แนวนอน');
@@ -7831,7 +7916,7 @@ window.ORG = {
         tvrTriggerPrintWhenReady(w);
     }
 
-    function printMapsPdf() {
+    async function printMapsPdf() {
         const meta = tvrGetFormMeta();
         const rows = Array.from(document.querySelectorAll('#travel-days-list .travel-day-row'));
         const mapPages = [];
@@ -7886,18 +7971,27 @@ window.ORG = {
             </div>`;
         }).join('');
 
+        const ok = await tvrExportHtmlToPdfDirect(pagesHtml, {
+            orientation: 'portrait',
+            pageSelector: '.doh-map-page',
+            fileName: 'แผนที่ระยะทาง_DOH_' + (meta.officerName || 'maps')
+        });
+        if (ok) return;
+
         const w = window.open('', '_blank', 'width=900,height=1050');
         if (!w) {
             if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์/บันทึก PDF แผนที่ DOH');
             return;
         }
         w.document.open();
-        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>แผนที่ระยะทาง DOH (' + mapPages.length + ' วัน) - ' + escH(meta.officerName) + '</title><style>' +
+        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>แผนที่ระยะทาง DOH (' + mapPages.length + ' วัน) - ' + escH(meta.officerName) + '</title>' +
+            tvrCollectFontStyles() +
+            '<style>' +
             '@page { size: A4 portrait; margin: 14mm 15mm; }' +
             'body { margin: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; background: #fff; }' +
             '</style></head><body>' + pagesHtml + '</body></html>');
         w.document.close();
-        setTimeout(function () { w.focus(); w.print(); }, 450);
+        tvrTriggerPrintWhenReady(w);
     }
 
     function tvrEnsurePlanItems() {
@@ -8478,13 +8572,19 @@ window.ORG = {
         if (typeof global.showToast === 'function') global.showToast('ดาวน์โหลด Word แผนดำเนินงาน T&V (แนวนอน A4) เรียบร้อยแล้ว');
     }
 
-    function printPlanPdf() {
+    async function printPlanPdf() {
         const bodyHtml = tvrBuildPlanDocumentHtml('print');
         if (!bodyHtml) {
             if (typeof global.showToast === 'function') global.showToast('ยังไม่มีข้อมูลแผนดำเนินงาน กรุณานำเข้าไฟล์แผน T&V (.docx) หรือเพิ่มวันเดินทางก่อนครับ');
             return;
         }
         const meta = tvrGetFormMeta();
+        const ok = await tvrExportHtmlToPdfDirect(bodyHtml, {
+            orientation: 'landscape',
+            pageSelector: '.tvr-page',
+            fileName: 'แผนดำเนินงาน_TV_' + (meta.officerName || 'plan')
+        });
+        if (ok) return;
         const w = window.open('', '_blank', 'width=1150,height=780');
         if (!w) {
             if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อพิมพ์/บันทึก PDF แผนดำเนินงาน');
