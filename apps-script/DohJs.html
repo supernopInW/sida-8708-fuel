@@ -2110,7 +2110,7 @@
             const mo = moBase.endsWith('.') ? moBase : (moBase + '.');
             const yr2 = String(dateParsed.yearBE).slice(-2);
             const str = d + ' ' + mo + ' ' + yr2;
-            return str + ' - ' + str;
+            return '<span style="white-space:nowrap;">' + str + ' -</span><br><span style="white-space:nowrap;">' + str + '</span>';
         }
         const s = String(dateDisplay || dateRaw || '').replace(/[๐-๙]/g, function (c) {
             return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
@@ -2122,7 +2122,7 @@
             const mo = moBase + '.';
             const yr2 = String(m[3]).slice(-2);
             const str = d + ' ' + mo + ' ' + yr2;
-            return str + ' - ' + str;
+            return '<span style="white-space:nowrap;">' + str + ' -</span><br><span style="white-space:nowrap;">' + str + '</span>';
         }
         return escH(s || '-');
     }
