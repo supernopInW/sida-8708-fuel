@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DOH Auto-Bot — ระบบเบิกค่าน้ำมัน 8708 (ทุกอำเภอ)",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "ค้นหาระยะทางและแคปรูปแผนที่จาก DOH TO TRAVEL (dohgis.doh.go.th) อัตโนมัติ ส่งตรงเข้าแบบ 8708 + บก.111 รองรับทุกอำเภอทั่วประเทศ",
   "icons": {
     "16": "icons/icon16.png",

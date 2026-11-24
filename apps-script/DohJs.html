@@ -3450,7 +3450,7 @@
         if (typeof global.showToast === 'function') global.showToast('เรียงแผนตามหมวด T&V (DM/WM → เยี่ยมเยียน → ข้อมูล) เรียบร้อยแล้ว');
     }
 
-    function setTvPlanSendStatus(msg, tone) {
+    function setTvPlanSendStatus(msg, tone, resetLog) {
         const el = document.getElementById('tv-plan-send-status');
         if (!el) return;
         if (!msg) { el.classList.add('hidden'); return; }
@@ -3459,7 +3459,22 @@
         else if (tone === 'warn') el.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-950');
         else if (tone === 'err') el.classList.add('bg-rose-50', 'border-rose-300', 'text-rose-900');
         else el.classList.add('bg-sky-50', 'border-sky-300', 'text-sky-900');
-        el.textContent = msg;
+
+        let head = el.querySelector('.tv-send-head');
+        let logBox = el.querySelector('.tv-send-log-box');
+        if (!head || !logBox) {
+            el.innerHTML = '<div class="tv-send-head font-bold"></div>' +
+                '<div class="tv-send-log-box mt-1.5 max-h-36 overflow-y-auto rounded bg-white/80 border border-slate-200 p-2 font-mono text-[11px] leading-relaxed text-slate-700 space-y-0.5"></div>';
+            head = el.querySelector('.tv-send-head');
+            logBox = el.querySelector('.tv-send-log-box');
+        }
+        if (resetLog) logBox.innerHTML = '';
+        head.textContent = msg;
+        const ts = new Date().toLocaleTimeString('th-TH', { hour12: false });
+        const line = document.createElement('div');
+        line.textContent = '[' + ts + '] ' + msg;
+        logBox.appendChild(line);
+        logBox.scrollTop = logBox.scrollHeight;
     }
 
     function sendPlanToTvWeb() {
@@ -3470,7 +3485,14 @@
         }
         if (!_botState.connected) {
             openInstallModal();
-            if (typeof global.showToast === 'function') global.showToast('กรุณาติดตั้ง/อัปเดตส่วนเสริม DOH Auto-Bot (v1.2.0) เพื่อส่งแผนเข้าเว็บ tandv.doae.go.th อัตโนมัติครับ');
+            if (typeof global.showToast === 'function') global.showToast('กรุณาติดตั้ง/อัปเดตส่วนเสริม DOH Auto-Bot (v1.2.3) เพื่อส่งแผนเข้าเว็บ tandv.doae.go.th อัตโนมัติครับ');
+            return;
+        }
+        const verParts = String(_botState.version || '0.0.0').split('.').map(function (x) { return parseInt(x, 10) || 0; });
+        const verNum = verParts[0] * 10000 + verParts[1] * 100 + verParts[2];
+        if (verNum < 10200) {
+            setTvPlanSendStatus('⚠️ ส่วนเสริมของคุณยังเป็นเวอร์ชัน v' + (_botState.version || '?') + ' (เก่าเกินไป) — กรุณาไปที่ chrome://extensions แล้วกด Reload (↻) ให้เป็น v1.2.3 ก่อนส่งแผนครับ', 'warn', true);
+            if (typeof global.showToast === 'function') global.showToast('กรุณากด Reload ส่วนเสริมให้เป็น v1.2.3 ก่อนส่งแผนเข้า T&V ครับ');
             return;
         }
 
@@ -3516,7 +3538,7 @@
             };
         });
 
-        setTvPlanSendStatus('🚀 กำลังส่งแผน ' + payloadItems.length + ' รายการไปยังเว็บ T&V (tandv.doae.go.th)...', 'info');
+        setTvPlanSendStatus('🚀 เริ่มส่งแผน ' + payloadItems.length + ' รายการ (ปีงบประมาณ พ.ศ. ' + fiscalYearBE + ' · เดือน ' + monthFull + ') ไปยัง tandv.doae.go.th...', 'info', true);
         sendBotMessage({
             type: 'START_TV_SEND',
             jobId: 'tvjob_' + Date.now(),

@@ -603,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.2.2', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
+    sendResponse({ ok: true, version: '1.2.3', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
     return false;
   }
 
@@ -736,92 +736,96 @@ async function runTvSendJob(job) {
       return;
     }
 
-    sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: 'กำลังตั้งค่าปีงบประมาณ เดือน ผู้อนุมัติ และกรอกรายการแผนทีละแถว...' });
+    sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '✅ ตรวจพบหน้าฟอร์ม T&V แล้ว — กำลังตั้งค่าปีงบประมาณ ' + (job.plan.fiscalYearBE || '') + ' / เดือน ' + (job.plan.monthFull || '') + '...' });
 
-    const execRes = await chrome.scripting.executeScript({
+    // ขั้นที่ 1: ตั้งค่าปีงบประมาณ + เดือน + ผู้อนุมัติ
+    const setupRes = await chrome.scripting.executeScript({
       target: { tabId: tabId },
       world: 'MAIN',
       args: [job.plan],
       func: async (planArg) => {
         const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-        const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
         const setSelect2 = (selEl, val) => {
           if (!selEl) return false;
           selEl.value = val;
-          try {
-            if (window.jQuery) {
-              window.jQuery(selEl).val(val).trigger('change');
-              return true;
-            }
-          } catch (e) {}
+          try { if (window.jQuery) { window.jQuery(selEl).val(val).trigger('change'); return true; } } catch (e) {}
           selEl.dispatchEvent(new Event('change', { bubbles: true }));
           return true;
         };
-        const waitFor = async (fn, timeoutMs = 12000, stepMs = 250) => {
+        const waitFor = async (fn, timeoutMs = 8000, stepMs = 250) => {
           const start = Date.now();
-          while (Date.now() - start < timeoutMs) {
-            const v = fn();
-            if (v) return v;
-            await delay(stepMs);
-          }
+          while (Date.now() - start < timeoutMs) { const v = fn(); if (v) return v; await delay(stepMs); }
           return null;
         };
-
-        const items = Array.isArray(planArg && planArg.items) ? planArg.items : [];
-        if (!items.length) return { ok: false, error: 'ไม่มีรายการแผนที่จะส่ง' };
-
-        // 1. เลือกปีงบประมาณ (PL_YAER), เดือน (PL_MOUNT), และผู้อนุมัติ (USR_APPROVERS)
         const fiscalYear = String(planArg.fiscalYearBE || '');
         const monthFull = String(planArg.monthFull || '').trim();
         const approverName = String(planArg.approverName || '').trim();
-
+        let yrTxt = '', moTxt = '', appTxt = '';
         const yrEl = document.getElementById('PL_YAER');
         if (yrEl && fiscalYear) {
           const yrOpt = Array.from(yrEl.options).find((o) => String(o.value).trim() === fiscalYear || o.text.includes(fiscalYear));
-          if (yrOpt) {
-            setSelect2(yrEl, yrOpt.value);
-            await delay(900);
-          }
+          if (yrOpt) { setSelect2(yrEl, yrOpt.value); yrTxt = yrOpt.text.trim(); await delay(900); }
         }
-
         if (monthFull) {
           const moOpt = await waitFor(() => {
             const moEl = document.getElementById('PL_MOUNT');
-            if (!moEl) return null;
-            return Array.from(moEl.options).find((o) => o.value && o.text.includes(monthFull)) || null;
+            return moEl ? (Array.from(moEl.options).find((o) => o.value && o.text.includes(monthFull)) || null) : null;
           }, 8000);
-          if (moOpt) {
-            setSelect2(document.getElementById('PL_MOUNT'), moOpt.value);
-            await delay(700);
-          }
+          if (moOpt) { setSelect2(document.getElementById('PL_MOUNT'), moOpt.value); moTxt = moOpt.text.trim(); await delay(700); }
         }
-
         const appEl = document.getElementById('USR_APPROVERS');
         if (appEl) {
-          let appOpt = approverName
-            ? Array.from(appEl.options).find((o) => o.value && o.text.includes(approverName))
-            : null;
+          let appOpt = approverName ? Array.from(appEl.options).find((o) => o.value && o.text.includes(approverName)) : null;
           if (!appOpt) appOpt = Array.from(appEl.options).find((o) => o.value && !o.disabled);
-          if (appOpt) {
-            setSelect2(appEl, appOpt.value);
-            await delay(400);
-          }
+          if (appOpt) { setSelect2(appEl, appOpt.value); appTxt = appOpt.text.trim(); await delay(400); }
         }
+        return { ok: true, yrTxt, moTxt, appTxt };
+      }
+    });
+    const sr = setupRes && setupRes[0] && setupRes[0].result ? setupRes[0].result : {};
+    sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '📌 ตั้งค่าหัวแผนแล้ว: ปีงบฯ ' + (sr.yrTxt || '-') + ' · เดือน ' + (sr.moTxt || '-') + ' · ผู้อนุมัติ ' + (sr.appTxt || '-') });
 
-        const mapIssueCode = (cat) => {
-          const c = norm(cat);
-          if (c.includes('training') || c.includes('ถ่ายทอด')) return '1';
-          if (c.includes('supporting') || c.includes('สนับสนุน')) return '3';
-          if (c.includes('supervision') || c.includes('นิเทศ')) return '4';
-          if (c.includes('data') || c.includes('ข้อมูล')) return '5';
-          return '2';
-        };
+    // ขั้นที่ 2: วนกรอกทีละรายการพร้อมส่ง log กลับแบบเรียลไทม์
+    const items = Array.isArray(job.plan && job.plan.items) ? job.plan.items : [];
+    let sentCount = 0;
+    const errors = [];
 
-        let sentCount = 0;
-        const errors = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      sendToApp(job, {
+        type: 'TV_SEND_PROGRESS',
+        jobId: job.jobId,
+        message: '📝 [' + (i + 1) + '/' + items.length + '] กำลังกรอก: ' + (it.dateDMY || '') + ' — ' + (it.activity || '').slice(0, 45)
+      });
+      const rowRes = await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        world: 'MAIN',
+        args: [it, i + 1, items.length],
+        func: async (itArg, seqNo, totalNo) => {
+          const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+          const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+          const setSelect2 = (selEl, val) => {
+            if (!selEl) return false;
+            selEl.value = val;
+            try { if (window.jQuery) { window.jQuery(selEl).val(val).trigger('change'); return true; } } catch (e) {}
+            selEl.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          };
+          const waitFor = async (fn, timeoutMs = 10000, stepMs = 250) => {
+            const start = Date.now();
+            while (Date.now() - start < timeoutMs) { const v = fn(); if (v) return v; await delay(stepMs); }
+            return null;
+          };
+          // HUD บนหน้า T&V
+          let hud = document.getElementById('__sida_tv_hud');
+          if (!hud) {
+            hud = document.createElement('div');
+            hud.id = '__sida_tv_hud';
+            hud.style.cssText = 'position:fixed;top:12px;right:12px;z-index:999999;background:#0f766e;color:#fff;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,0.3);font-family:sans-serif;';
+            document.body.appendChild(hud);
+          }
+          hud.textContent = '🤖 กำลังส่งแผน T&V: ' + seqNo + '/' + totalNo + ' (' + (itArg.dateDMY || '') + ')';
 
-        for (let i = 0; i < items.length; i++) {
-          const it = items[i];
           try {
             const addBtn = document.querySelector('a[onclick*="form_mgt.php"]');
             if (!addBtn) throw new Error('ไม่พบปุ่ม "+ เพิ่มข้อมูล" บนหน้าแผน T&V');
@@ -835,19 +839,20 @@ async function runTvSendJob(job) {
             }, 12000);
             if (!form) throw new Error('เปิดหน้าต่างเพิ่มรายการไม่สำเร็จ');
 
-            // 1) ประเด็น
-            const issueCode = mapIssueCode(it.category);
-            const issueSel = form.querySelector('#PD_ISSUES');
-            setSelect2(issueSel, issueCode);
-            await delay(700);
+            const c = norm(itArg.category);
+            const issueCode = (c.includes('training') || c.includes('ถ่ายทอด')) ? '1'
+              : (c.includes('supporting') || c.includes('สนับสนุน')) ? '3'
+              : (c.includes('supervision') || c.includes('นิเทศ')) ? '4'
+              : (c.includes('data') || c.includes('ข้อมูล')) ? '5' : '2';
+            setSelect2(form.querySelector('#PD_ISSUES'), issueCode);
+            await delay(650);
 
-            // 2) กิจกรรม (รอ AJAX โหลด option)
             const actSel = await waitFor(() => {
               const s = form.querySelector('#PD_ACTIVITY');
               return (s && s.options && s.options.length > 1) ? s : null;
             }, 8000);
             if (actSel) {
-              const actText = String(it.activity || '').trim();
+              const actText = String(itArg.activity || '').trim();
               const isOtherPrefix = /^อื่นๆ\s*:?/i.test(actText);
               const cleanAct = norm(actText.replace(/^อื่นๆ\s*:?\s*/i, ''));
               let chosen = null;
@@ -855,12 +860,10 @@ async function runTvSendJob(job) {
                 chosen = Array.from(actSel.options).find((o) => o.value && norm(o.text) === cleanAct)
                   || Array.from(actSel.options).find((o) => o.value && o.value !== '999' && (norm(o.text).includes(cleanAct) || cleanAct.includes(norm(o.text))));
               }
-              if (!chosen) {
-                chosen = Array.from(actSel.options).find((o) => o.value === '999') || Array.from(actSel.options).find((o) => o.value);
-              }
+              if (!chosen) chosen = Array.from(actSel.options).find((o) => o.value === '999') || Array.from(actSel.options).find((o) => o.value);
               if (chosen) {
                 setSelect2(actSel, chosen.value);
-                await delay(450);
+                await delay(400);
                 if (chosen.value === '999') {
                   const otherInp = form.querySelector('input[name*="OTHER"], input[id*="OTHER"], input[name*="ETC"], input[id*="ETC"]');
                   if (otherInp) {
@@ -871,111 +874,111 @@ async function runTvSendJob(job) {
               }
             }
 
-            // 3) รายละเอียด, วันที่เริ่ม-สิ้นสุด, สถานที่, เป้าหมาย, หมายเหตุ
             const detEl = form.querySelector('#PD_DETAIL');
-            if (detEl) {
-              detEl.value = String(it.detail || it.activity || '').trim();
-              detEl.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (detEl) { detEl.value = String(itArg.detail || itArg.activity || '').trim(); detEl.dispatchEvent(new Event('input', { bubbles: true })); }
 
             const sDateEl = form.querySelector('#PD_SDATE');
             const eDateEl = form.querySelector('#PD_EDATE');
-            if (sDateEl && it.dateDMY) {
-              sDateEl.disabled = false;
-              sDateEl.removeAttribute('disabled');
-              sDateEl.value = it.dateDMY;
+            if (sDateEl && itArg.dateDMY) {
+              sDateEl.disabled = false; sDateEl.removeAttribute('disabled');
+              sDateEl.value = itArg.dateDMY;
               sDateEl.dispatchEvent(new Event('input', { bubbles: true }));
               sDateEl.dispatchEvent(new Event('change', { bubbles: true }));
-              if (window.jQuery) { try { window.jQuery(sDateEl).val(it.dateDMY).trigger('change'); } catch (e) {} }
-              await delay(300);
+              if (window.jQuery) { try { window.jQuery(sDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {} }
+              await delay(250);
             }
-            if (eDateEl && it.dateDMY) {
-              eDateEl.disabled = false;
-              eDateEl.removeAttribute('disabled');
-              eDateEl.value = it.dateDMY;
+            if (eDateEl && itArg.dateDMY) {
+              eDateEl.disabled = false; eDateEl.removeAttribute('disabled');
+              eDateEl.value = itArg.dateDMY;
               eDateEl.dispatchEvent(new Event('input', { bubbles: true }));
               eDateEl.dispatchEvent(new Event('change', { bubbles: true }));
-              if (window.jQuery) { try { window.jQuery(eDateEl).val(it.dateDMY).trigger('change'); } catch (e) {} }
+              if (window.jQuery) { try { window.jQuery(eDateEl).val(itArg.dateDMY).trigger('change'); } catch (e) {} }
             }
 
             const placeEl = form.querySelector('#PD_PLACE');
-            if (placeEl) {
-              placeEl.value = String(it.location || '').replace(/\n+/g, ' ').trim();
-              placeEl.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (placeEl) { placeEl.value = String(itArg.location || '').replace(/\n+/g, ' ').trim(); placeEl.dispatchEvent(new Event('input', { bubbles: true })); }
 
             const targetEl = form.querySelector('#PD_TARGET');
             if (targetEl) {
-              const numOnly = String(it.targetCount || '0').replace(/[^\d]/g, '') || '0';
-              targetEl.value = numOnly;
+              targetEl.value = String(itArg.targetCount || '0').replace(/[^\d]/g, '') || '0';
               targetEl.dispatchEvent(new Event('input', { bubbles: true }));
               targetEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
             const cmtEl = form.querySelector('#PD_COMMENT');
-            if (cmtEl && it.note) {
-              cmtEl.value = String(it.note || '').trim();
-              cmtEl.dispatchEvent(new Event('input', { bubbles: true }));
-            }
+            if (cmtEl && itArg.note) { cmtEl.value = String(itArg.note || '').trim(); cmtEl.dispatchEvent(new Event('input', { bubbles: true })); }
 
-            // 4) กดปุ่มบันทึกใน Modal (บันทึกรายการย่อยเข้าตาราง ไม่กดส่งอนุมัติหลัก)
             const saveBtn = form.querySelector('button[type="submit"]');
             if (!saveBtn) throw new Error('ไม่พบปุ่มบันทึกในหน้าต่างเพิ่มรายการ');
-            saveBtn.disabled = false;
-            saveBtn.removeAttribute('disabled');
+            saveBtn.disabled = false; saveBtn.removeAttribute('disabled');
             saveBtn.click();
 
-            // รอ Modal ปิดหรือโหลดเสร็จ
-            await delay(1300);
+            await delay(1200);
             await waitFor(() => {
               const m = document.getElementById('bizModal_402');
               return !m || !m.classList.contains('show') || m.style.display === 'none';
             }, 8000);
-            await delay(400);
-            sentCount++;
+            await delay(350);
+            return { ok: true };
           } catch (rowErr) {
-            errors.push('#' + (i + 1) + ': ' + (rowErr && rowErr.message ? rowErr.message : String(rowErr)));
             const closeBtn = document.querySelector('#bizModal_402 button.close-modal');
             if (closeBtn) closeBtn.click();
-            await delay(400);
+            await delay(350);
+            return { ok: false, error: rowErr && rowErr.message ? rowErr.message : String(rowErr) };
           }
         }
+      });
+      const rOut = rowRes && rowRes[0] && rowRes[0].result ? rowRes[0].result : { ok: false, error: 'ไม่มีผลลัพธ์' };
+      if (rOut.ok) {
+        sentCount++;
+        sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '✅ [' + (i + 1) + '/' + items.length + '] บันทึกรายการสำเร็จ' });
+      } else {
+        errors.push('#' + (i + 1) + ': ' + rOut.error);
+        sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '⚠️ [' + (i + 1) + '/' + items.length + '] ไม่สำเร็จ: ' + rOut.error });
+      }
+    }
 
-        let tempSaved = false;
-        if (sentCount > 0) {
-          // กดเฉพาะปุ่ม "บันทึกชั่วคราว" (#wf-btn-temp-save) เท่านั้น — ห้ามกดปุ่ม "บันทึกและส่งข้อมูล" (#wf-btn-save) เด็ดขาด!
+    // ขั้นที่ 3: กดเฉพาะปุ่ม "บันทึกชั่วคราว" (#wf-btn-temp-save) เท่านั้น — ห้ามกดปุ่มส่งอนุมัติเด็ดขาด!
+    let tempSaved = false;
+    if (sentCount > 0) {
+      sendToApp(job, { type: 'TV_SEND_PROGRESS', jobId: job.jobId, message: '💾 กำลังกดปุ่ม "บันทึกชั่วคราว" (ไม่ส่งอนุมัติ)...' });
+      const tsRes = await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        world: 'MAIN',
+        func: async () => {
+          const hud = document.getElementById('__sida_tv_hud');
+          if (hud) hud.textContent = '💾 กำลังกด "บันทึกชั่วคราว"...';
           const saveStepEl = document.getElementById('SAVE_STEP');
           if (saveStepEl) saveStepEl.value = 'Y';
           const tempSaveBtn = document.getElementById('wf-btn-temp-save');
           if (tempSaveBtn) {
-            await delay(500);
+            await new Promise((r) => setTimeout(r, 400));
             tempSaveBtn.click();
-            tempSaved = true;
+            return true;
           }
+          return false;
         }
+      });
+      tempSaved = !!(tsRes && tsRes[0] && tsRes[0].result);
+    }
 
-        return { ok: sentCount > 0, sentCount: sentCount, total: items.length, tempSaved: tempSaved, errors: errors };
-      }
-    });
-
-    const out = execRes && execRes[0] && execRes[0].result ? execRes[0].result : { ok: false, error: 'ไม่ได้รับผลลัพธ์จากหน้า T&V' };
     await chrome.tabs.update(tabId, { active: true });
-    if (out.ok) {
+    if (sentCount > 0) {
       sendToApp(job, {
         type: 'TV_SEND_DONE',
         jobId: job.jobId,
-        sentCount: out.sentCount,
-        total: out.total,
-        tempSaved: !!out.tempSaved,
-        errors: out.errors || [],
-        message: '✅ ส่งแผนเข้าเว็บ T&V แล้ว ' + out.sentCount + '/' + out.total + ' รายการ' +
-          (out.tempSaved ? ' และกด "บันทึกชั่วคราว" เรียบร้อยแล้ว (ยังไม่ได้ส่งอนุมัติ)' : ' — กรุณาตรวจทานและกด "บันทึกชั่วคราว" ในแท็บ T&V ครับ')
+        sentCount: sentCount,
+        total: items.length,
+        tempSaved: tempSaved,
+        errors: errors,
+        message: '✅ ส่งแผนเข้าเว็บ T&V แล้ว ' + sentCount + '/' + items.length + ' รายการ' +
+          (tempSaved ? ' และกด "บันทึกชั่วคราว" เรียบร้อยแล้ว (ยังไม่ได้ส่งอนุมัติ)' : ' — กรุณาตรวจทานและกด "บันทึกชั่วคราว" ในแท็บ T&V ครับ')
       });
     } else {
       sendToApp(job, {
         type: 'TV_SEND_ERROR',
         jobId: job.jobId,
-        error: out.error || (out.errors && out.errors.join('; ')) || 'ส่งแผนเข้าเว็บ T&V ไม่สำเร็จ'
+        error: errors.join('; ') || 'ส่งแผนเข้าเว็บ T&V ไม่สำเร็จ'
       });
     }
   } catch (err) {
