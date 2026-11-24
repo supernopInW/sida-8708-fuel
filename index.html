@@ -7233,21 +7233,24 @@ window.ORG = {
 
     function tvrFormatDateCell(dateParsed, dateDisplay, dateRaw) {
         if (dateParsed && dateParsed.day && dateParsed.monthAbbr && dateParsed.yearBE) {
-            const dd = String(dateParsed.day).padStart(2, '0');
-            const mo = String(dateParsed.monthAbbr).replace(/\.$/, '');
-            const str = dd + ' ' + mo + ' ' + dateParsed.yearBE;
-            return str + '<br>-<br>' + str;
+            const d = String(parseInt(dateParsed.day, 10));
+            const moBase = String(dateParsed.monthAbbr).replace(/\.$/, '');
+            const mo = moBase.endsWith('.') ? moBase : (moBase + '.');
+            const yr2 = String(dateParsed.yearBE).slice(-2);
+            const str = d + ' ' + mo + ' ' + yr2;
+            return str + ' - ' + str;
         }
         const s = String(dateDisplay || dateRaw || '').replace(/[๐-๙]/g, function (c) {
             return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
         }).trim();
         const m = s.match(/(\d{1,2})\s*([ก-ฮ]+\.?)\s*(\d{2,4})/);
         if (m) {
-            const dd = String(parseInt(m[1], 10)).padStart(2, '0');
-            const mo = m[2].replace(/\.$/, '');
-            const yr = m[3].length === 2 ? ('25' + m[3]) : m[3];
-            const str = dd + ' ' + mo + ' ' + yr;
-            return str + '<br>-<br>' + str;
+            const d = String(parseInt(m[1], 10));
+            const moBase = m[2].replace(/\.$/, '');
+            const mo = moBase + '.';
+            const yr2 = String(m[3]).slice(-2);
+            const str = d + ' ' + mo + ' ' + yr2;
+            return str + ' - ' + str;
         }
         return escH(s || '-');
     }
@@ -8174,7 +8177,7 @@ window.ORG = {
                 <td style="${tdStyle}"${editAttr('category')}>${escH(r.category)}</td>
                 <td style="${tdStyle}"${editAttr('activity')}>${escH(r.activity)}</td>
                 <td style="${tdStyle}"${editAttr('detail')}>${tvrFormatDetailHtml(r.detail)}</td>
-                <td style="${tdStyle}text-align:center;white-space:nowrap;"${editAttr('date')}>${dateCellContent}</td>
+                <td style="${tdStyle}text-align:center;"${editAttr('date')}>${dateCellContent}</td>
                 <td style="${tdStyle}"${editAttr('location')}>${locCellContent}</td>
                 <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
                 <td style="${tdStyle}"${editAttr('note')}>${escH(r.note)}</td>
