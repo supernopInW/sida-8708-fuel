@@ -2400,14 +2400,14 @@
 
         const tableHeadHtml = `
             <colgroup>
-                <col style="width:4%;">
+                <col style="width:4.5%;">
                 <col style="width:12%;">
                 <col style="width:13%;">
                 <col style="width:5%;">
                 <col style="width:6%;">
                 <col style="width:6%;">
                 <col style="width:11%;">
-                <col style="width:15%;">
+                <col style="width:14.5%;">
                 <col style="width:7%;">
                 <col style="width:7%;">
                 <col style="width:7%;">
@@ -2653,6 +2653,36 @@
         if (typeof global.showToast === 'function') global.showToast('ดาวน์โหลด Word รายงานผล T&V (แนวนอน A4) เรียบร้อยแล้ว');
     }
 
+    function tvrCollectFontStyles() {
+        let out = '';
+        try {
+            document.querySelectorAll('style').forEach(function (st) {
+                const txt = st.textContent || '';
+                if (txt.indexOf('@font-face') !== -1 && (txt.indexOf('Sarabun') !== -1 || txt.indexOf('TH ') !== -1)) {
+                    out += '<style>' + txt + '</style>';
+                }
+            });
+        } catch (e) { /* ignore */ }
+        return out;
+    }
+
+    function tvrTriggerPrintWhenReady(w) {
+        let printed = false;
+        const doPrint = function () {
+            if (printed) return;
+            printed = true;
+            try { w.focus(); w.print(); } catch (e) { /* ignore */ }
+        };
+        try {
+            if (w.document && w.document.fonts && w.document.fonts.ready) {
+                w.document.fonts.ready.then(function () {
+                    setTimeout(doPrint, 180);
+                });
+            }
+        } catch (e) { /* ignore */ }
+        setTimeout(doPrint, 900);
+    }
+
     function printTvReportPdf() {
         tvrBuildRows(false);
         const bodyHtml = tvrBuildDocumentHtml('print');
@@ -2662,13 +2692,15 @@
             return;
         }
         w.document.open();
-        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>รายงานผลการปฏิบัติงาน T&V</title><style>' +
-            '@page { size: A4 landscape; margin: 12mm 10mm; }' +
-            'body { margin: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; }' +
+        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>รายงานผลการปฏิบัติงาน T&V</title>' +
+            tvrCollectFontStyles() +
+            '<style>' +
+            '@page { size: A4 landscape; margin: 10mm 8mm; }' +
+            'html, body { margin: 0; padding: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; background: #fff; }' +
             'thead { display: table-header-group; } tr { page-break-inside: avoid; }' +
             '</style></head><body>' + bodyHtml + '</body></html>');
         w.document.close();
-        setTimeout(function () { w.focus(); w.print(); }, 350);
+        tvrTriggerPrintWhenReady(w);
     }
 
     function printMapsPdf() {
@@ -3331,13 +3363,15 @@
             return;
         }
         w.document.open();
-        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>แผนการปฏิบัติงาน T&V - ' + escH(meta.officerName) + '</title><style>' +
-            '@page { size: A4 landscape; margin: 12mm 10mm; }' +
-            'body { margin: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; background: #fff; }' +
+        w.document.write('<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>แผนการปฏิบัติงาน T&V - ' + escH(meta.officerName) + '</title>' +
+            tvrCollectFontStyles() +
+            '<style>' +
+            '@page { size: A4 landscape; margin: 10mm 8mm; }' +
+            'html, body { margin: 0; padding: 0; font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; color: #000; background: #fff; }' +
             'tr { page-break-inside: avoid; }' +
             '</style></head><body>' + bodyHtml + '</body></html>');
         w.document.close();
-        setTimeout(function () { w.focus(); w.print(); }, 350);
+        tvrTriggerPrintWhenReady(w);
     }
 
     /* ==================== Built-in T&V Monthly Plan Generator ==================== */
