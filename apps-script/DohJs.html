@@ -2446,14 +2446,17 @@
         const lastPageWeight = pages[pages.length - 1].reduce(function (acc, x) { return acc + x.weight; }, 0);
         const separateSignPage = lastPageWeight > 9;
 
-        const pageBreakHtml = forExport
+        const pageBreakHtml = forExport === 'word'
             ? '<br clear="all" style="page-break-before:always;mso-break-type:page-break;mso-special-character:line-break" />'
-            : '<div class="no-print" style="height:18px;border-bottom:2px dashed #cbd5e1;margin:18px 0;text-align:center;font-size:11px;color:#94a3b8;">— ขึ้นหน้าใหม่ (ล็อกหัวรายงานทุกหน้า) —</div>';
+            : (forExport === 'print'
+                ? ''
+                : '<div class="no-print" style="height:18px;border-bottom:2px dashed #cbd5e1;margin:18px 0;text-align:center;font-size:11px;color:#94a3b8;">— ขึ้นหน้าใหม่ (ล็อกหัวรายงานทุกหน้า) —</div>');
 
         const pageDivs = pages.map(function (pg, pIdx) {
             const isLastTablePage = (pIdx === pages.length - 1);
             const trsHtml = pg.map(function (item) { return renderRowTr(item.row, item.idx); }).join('');
-            return `<div class="tvr-page" style="${pIdx > 0 && forExport ? '' : ''}">
+            const pbStyle = (forExport === 'print' && pIdx > 0) ? 'page-break-before:always;break-before:page;' : '';
+            return `<div class="tvr-page" style="${pbStyle}">
                 ${header4LinesHtml}
                 <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
                     ${tableHeadHtml}
@@ -2464,7 +2467,8 @@
         });
 
         if (separateSignPage) {
-            pageDivs.push(`<div class="tvr-page">${header4LinesHtml}<div style="margin-top:42px;">${signHtml}</div></div>`);
+            const pbStyle = (forExport === 'print') ? 'page-break-before:always;break-before:page;' : '';
+            pageDivs.push(`<div class="tvr-page" style="${pbStyle}">${header4LinesHtml}<div style="margin-top:42px;">${signHtml}</div></div>`);
         }
 
         return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">${pageDivs.join(pageBreakHtml)}</div>`;
@@ -2503,7 +2507,7 @@
     function exportTvReportWord() {
         tvrBuildRows(false);
         const meta = tvrGetFormMeta();
-        const bodyHtml = tvrBuildDocumentHtml(true);
+        const bodyHtml = tvrBuildDocumentHtml('word');
         const html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>" +
             "<head><meta charset='utf-8'><title>รายงานผลการปฏิบัติงาน T&V</title>" +
             "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->" +
@@ -2529,7 +2533,7 @@
 
     function printTvReportPdf() {
         tvrBuildRows(false);
-        const bodyHtml = tvrBuildDocumentHtml(true);
+        const bodyHtml = tvrBuildDocumentHtml('print');
         const w = window.open('', '_blank', 'width=1150,height=780');
         if (!w) {
             if (typeof global.showToast === 'function') global.showToast('กรุณาอนุญาตป๊อปอัปเพื่อสั่งพิมพ์/บันทึก PDF แนวนอน');
