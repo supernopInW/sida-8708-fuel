@@ -4473,8 +4473,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="bg111" onclick="switchDocFilter('bg111')">บก.111</button>
             <button type="button" class="doc-tab-btn text-xs font-medium px-2.5 py-1.5 rounded border border-slate-400 bg-white" data-doc="vehicle" onclick="switchDocFilter('vehicle')">หน้างบ+แผนที่</button>
             <button type="button" class="doc-tab-btn text-xs font-semibold px-2.5 py-1.5 rounded border border-teal-500 bg-teal-50 text-teal-900" data-doc="tvreport" onclick="switchDocFilter('tvreport')">📋 รายงานผล T&amp;V</button>
-            <button type="button" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-sky-500 bg-sky-50 hover:bg-sky-100 text-sky-900" onclick="window.__tvReport?.printPlanPdf()" title="นำแผนดำเนินงาน T&amp;V (.docx) ที่อัปโหลดมาจัดเรียงเป็น PDF แนวนอน A4 (ล็อกหัวทุกหน้า)">📅 PDF แผนดำเนินงาน</button>
+            <button type="button" class="doc-tab-btn text-xs font-semibold px-2.5 py-1.5 rounded border border-sky-500 bg-sky-50 text-sky-900" data-doc="tvplan" onclick="switchDocFilter('tvplan')" title="ดูและแก้ไขแผนดำเนินงาน T&amp;V (ลิงก์ตรงกับตัวเบิก 8708 + บก.111) พร้อมพิมพ์ PDF/Word แนวนอน">📅 แผนดำเนินงาน</button>
             <button type="button" class="text-xs font-semibold px-2.5 py-1.5 rounded border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-900" onclick="window.__tvReport?.printMapsPdf()" title="นำแผนที่ DOH ที่อัปโหลดทุกวันมาจัดเรียงเป็น PDF แยกชุด (1 วัน / 1 หน้า A4)">🗺️ PDF แผนที่ DOH</button>
+        </div>
+
+        <!-- มุมมองแผนการปฏิบัติงาน T&V (แก้ไขสดได้ + ลิงก์ตรงกับตัวเบิก 8708/บก.111 + พิมพ์ PDF/Word แนวนอน) -->
+        <div id="tv-plan-view" class="no-print-hide w-full max-w-[1160px] mx-auto" style="display:none;">
+            <div class="no-print mb-3 p-3 rounded-xl bg-white border border-sky-200 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-sky-900">📅 แผนการปฏิบัติงาน (T&amp;V System) — แก้ไขแล้วลิงก์ตรงกับตัวเบิก 8708 + รายงานผล</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button type="button" onclick="window.__tvReport?.addPlanRow()" class="px-2.5 py-1.5 rounded-lg border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-900 font-semibold">➕ เพิ่มแถวแผน</button>
+                    <button type="button" onclick="window.__tvReport?.syncPlanToClaim8708()" class="px-2.5 py-1.5 rounded-lg border border-teal-400 bg-teal-50 hover:bg-teal-100 text-teal-900 font-semibold" title="นำวันที่และสถานที่ทั้งหมดจากแผนนี้ไปอัปเดตในตัวเบิก 8708 + บก.111 (คงระยะทาง กม. และรูปแผนที่เดิมตามวันที่)">🔄 ซิงก์เข้าตัวเบิก 8708</button>
+                    <button type="button" onclick="window.__tvReport?.exportPlanWord()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">📥 Word แนวนอน (.doc)</button>
+                    <button type="button" onclick="window.__tvReport?.printPlanPdf()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-semibold shadow-sm">🖨️ พิมพ์ / PDF แนวนอน</button>
+                </div>
+            </div>
+            <div class="no-print mb-2 text-[11px] text-slate-600 px-1">
+                💡 คลิกพิมพ์แก้ไขทุกช่องได้ทันที — เมื่อแก้ <b>วันที่</b> หรือ <b>สถานที่ดำเนินการ</b> ระบบจะลิงก์อัปเดตไปที่ <b>ตัวเบิก 8708 / บก.111</b> และ <b>รายงานผล T&amp;V</b> ให้ตรงกันโดยอัตโนมัติ
+            </div>
+            <div id="tv-plan-paper" class="bg-white shadow-lg border border-slate-300 mx-auto p-6 overflow-x-auto" style="min-height:210mm; font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif; color:#000;"></div>
         </div>
 
         <!-- มุมมองรายงานผลการปฏิบัติงาน T&V (แนวนอน A4 สัมพันธ์กับวันที่เบิก) -->
@@ -7674,46 +7693,64 @@ window.ORG = {
         setTimeout(function () { w.focus(); w.print(); }, 450);
     }
 
+    function tvrEnsurePlanItems() {
+        let plan = tvrLoadPlan();
+        if (plan && Array.isArray(plan.items) && plan.items.length) return plan;
+        const cfg = getActiveOrgConfig();
+        const items = [];
+        document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r, idx) {
+            const dt = (r.querySelector('.day-date')?.value || '').trim();
+            const dest = (r.querySelector('.day-dest')?.value || '').trim();
+            if (!dt) return;
+            const parsed = parseThaiDateCell(dt);
+            const cleanLoc = dest.replace(new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), '').trim() || cfg.officeName;
+            items.push({
+                seqNum: idx + 1,
+                category: 'การเยี่ยมเยียน (VISITING)',
+                activity: 'ปฏิบัติงานส่งเสริมการเกษตรในพื้นที่',
+                detail: 'ติดตามเยี่ยมเยียนและให้คำแนะนำเกษตรกร',
+                dateDisplay: parsed.display8708 || dt,
+                dateRaw: dt,
+                dateIso: parsed.iso || '',
+                dateParsed: parsed && parsed.day ? { day: parsed.day, monthAbbr: parsed.monthAbbr, monthFull: parsed.monthFull, yearBE: parsed.yearBE } : null,
+                locationRaw: cleanLoc,
+                targetCount: '',
+                note: '',
+                isFieldTrip: true
+            });
+        });
+        plan = { fileName: 'manual', items: items };
+        global.__tvPlanStore = plan;
+        try { localStorage.setItem(TVR_STORAGE_KEY, JSON.stringify(plan)); } catch (e) { /* ignore */ }
+        return plan;
+    }
+
+    function tvrSavePlanStore(plan) {
+        global.__tvPlanStore = plan;
+        try { localStorage.setItem(TVR_STORAGE_KEY, JSON.stringify(plan)); } catch (e) { /* ignore */ }
+    }
+
     function tvrBuildPlanDocumentHtml(mode) {
+        const isScreen = (mode === 'screen');
         const meta = tvrGetFormMeta();
-        const plan = tvrLoadPlan();
+        const plan = tvrEnsurePlanItems();
         const thStyle = 'border:1px solid #000;padding:4px 5px;text-align:center;vertical-align:top;font-weight:700;font-size:15pt;line-height:1.15;';
         const tdStyle = 'border:1px solid #000;padding:4px 5px;vertical-align:top;font-size:15pt;line-height:1.2;';
 
-        let items = [];
-        if (plan && Array.isArray(plan.items) && plan.items.length) {
-            items = plan.items.map(function (it, idx) {
-                return {
-                    seq: it.seqNum || (idx + 1),
-                    category: String(it.category || (it.isFieldTrip ? 'การเยี่ยมเยียน (VISITING)' : 'การถ่ายทอดความรู้ (TRAINING)')).replace(/^[\}\]\s]+/, '').trim(),
-                    activity: String(it.activity || '').trim(),
-                    detail: String(it.detail || it.activity || '').trim(),
-                    dateHtml: tvrFormatDateCell(it.dateParsed, it.dateDisplay, it.dateRaw),
-                    location: String(it.locationRaw || '').trim(),
-                    targetCount: String(it.targetCount || '').trim(),
-                    note: String(it.note || '').trim()
-                };
-            });
-        } else {
-            // Fallback จากแถววันเดินทางที่กรอกในฟอร์ม
-            const cfg = getActiveOrgConfig();
-            document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r, idx) {
-                const dt = (r.querySelector('.day-date')?.value || '').trim();
-                const dest = (r.querySelector('.day-dest')?.value || '').trim();
-                if (!dt) return;
-                const cleanLoc = dest.replace(new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), '').trim() || cfg.officeName;
-                items.push({
-                    seq: idx + 1,
-                    category: 'การเยี่ยมเยียน (VISITING)',
-                    activity: 'ปฏิบัติงานส่งเสริมการเกษตรในพื้นที่',
-                    detail: 'ติดตามเยี่ยมเยียนและให้คำแนะนำเกษตรกร',
-                    dateHtml: tvrFormatDateCell(null, dt, dt),
-                    location: cleanLoc,
-                    targetCount: '',
-                    note: ''
-                });
-            });
-        }
+        const items = (plan.items || []).map(function (it, idx) {
+            return {
+                idx: idx,
+                seq: idx + 1,
+                category: String(it.category || (it.isFieldTrip ? 'การเยี่ยมเยียน (VISITING)' : 'การถ่ายทอดความรู้ (TRAINING)')).replace(/^[\}\]\s]+/, '').trim(),
+                activity: String(it.activity || '').trim(),
+                detail: String(it.detail || it.activity || '').trim(),
+                dateRawText: String(it.dateDisplay || it.dateRaw || '').trim(),
+                dateHtml: tvrFormatDateCell(it.dateParsed, it.dateDisplay, it.dateRaw),
+                location: String(it.locationRaw || '').trim(),
+                targetCount: String(it.targetCount || '').trim(),
+                note: String(it.note || '').trim()
+            };
+        });
 
         const header4LinesHtml = `
             <div style="text-align:center;font-weight:700;font-size:17pt;line-height:1.35;margin-bottom:8px;">
@@ -7770,6 +7807,37 @@ window.ORG = {
                 </tr>
             </table>`;
 
+        const renderPlanRow = function (r) {
+            const editAttr = function (field) {
+                return isScreen ? (` contenteditable="true" spellcheck="false" onblur="window.__tvReport.updatePlanField(${r.idx}, '${field}', this.innerText)"`) : '';
+            };
+            const delBtn = isScreen ? `<div class="no-print" style="margin-top:4px;"><button type="button" onclick="window.__tvReport.deletePlanRow(${r.idx})" style="font-size:10px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 5px;cursor:pointer;" title="ลบแถวนี้">ลบ</button></div>` : '';
+            const dateCellContent = isScreen ? escH(r.dateRawText) : r.dateHtml;
+            const locCellContent = isScreen ? escH(r.location) : tvrFormatLocationHtml(r.location);
+            return `<tr>
+                <td style="${tdStyle}text-align:center;">${r.seq}${delBtn}</td>
+                <td style="${tdStyle}"${editAttr('category')}>${escH(r.category)}</td>
+                <td style="${tdStyle}"${editAttr('activity')}>${escH(r.activity)}</td>
+                <td style="${tdStyle}"${editAttr('detail')}>${escH(r.detail)}</td>
+                <td style="${tdStyle}text-align:center;white-space:nowrap;"${editAttr('date')}>${dateCellContent}</td>
+                <td style="${tdStyle}"${editAttr('location')}>${locCellContent}</td>
+                <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
+                <td style="${tdStyle}"${editAttr('note')}>${escH(r.note)}</td>
+            </tr>`;
+        };
+
+        if (!items.length) {
+            return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">
+                <div class="tvr-page">${header4LinesHtml}
+                    <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+                        ${tableHeadHtml}
+                        <tbody><tr><td colspan="8" style="${tdStyle}text-align:center;padding:16px;color:#64748b;">ยังไม่มีข้อมูลแผนดำเนินงาน (นำเข้าไฟล์ .docx หรือกด "➕ เพิ่มแถวแผน")</td></tr></tbody>
+                    </table>
+                    ${signHtml}
+                </div>
+            </div>`;
+        }
+
         const MAX_WEIGHT_PER_PAGE = 15;
         const pages = [];
         let curPage = [];
@@ -7789,29 +7857,15 @@ window.ORG = {
         });
         if (curPage.length) pages.push(curPage);
 
-        if (!pages.length) return '';
-
         const lastPageWeight = pages[pages.length - 1].reduce(function (acc, x) { return acc + x.weight; }, 0);
         const separateSignPage = lastPageWeight > 9;
         const pageBreakHtml = (mode === 'word')
             ? '<br clear="all" style="page-break-before:always;mso-break-type:page-break;mso-special-character:line-break" />'
-            : '';
+            : (isScreen ? '<div class="no-print" style="height:18px;border-bottom:2px dashed #cbd5e1;margin:18px 0;text-align:center;font-size:11px;color:#94a3b8;">— ขึ้นหน้าใหม่ (ล็อกหัวแผนทุกหน้า) —</div>' : '');
 
         const pageDivs = pages.map(function (pg, pIdx) {
             const isLastTablePage = (pIdx === pages.length - 1);
-            const trsHtml = pg.map(function (item) {
-                const r = item.row;
-                return `<tr>
-                    <td style="${tdStyle}text-align:center;">${r.seq}</td>
-                    <td style="${tdStyle}">${escH(r.category)}</td>
-                    <td style="${tdStyle}">${escH(r.activity)}</td>
-                    <td style="${tdStyle}">${escH(r.detail)}</td>
-                    <td style="${tdStyle}text-align:center;white-space:nowrap;">${r.dateHtml}</td>
-                    <td style="${tdStyle}">${tvrFormatLocationHtml(r.location)}</td>
-                    <td style="${tdStyle}text-align:right;">${escH(r.targetCount)}</td>
-                    <td style="${tdStyle}">${escH(r.note)}</td>
-                </tr>`;
-            }).join('');
+            const trsHtml = pg.map(function (item) { return renderPlanRow(item.row); }).join('');
             const pbStyle = (mode === 'print' && pIdx > 0) ? 'page-break-before:always;break-before:page;' : '';
             return `<div class="tvr-page" style="${pbStyle}">
                 ${header4LinesHtml}
@@ -7829,6 +7883,207 @@ window.ORG = {
         }
 
         return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">${pageDivs.join(pageBreakHtml)}</div>`;
+    }
+
+    function renderTvPlan() {
+        const paper = document.getElementById('tv-plan-paper');
+        if (!paper) return;
+        paper.innerHTML = tvrBuildPlanDocumentHtml('screen');
+    }
+
+    function updatePlanField(idx, field, val) {
+        const plan = tvrEnsurePlanItems();
+        const it = plan.items[idx];
+        if (!it) return;
+        const cleanVal = String(val || '').replace(/\s+/g, ' ').trim();
+        const oldDateKey = tvrNormDateKey(it.dateDisplay || it.dateRaw);
+
+        if (field === 'date') {
+            const parsed = parseThaiDateCell(cleanVal);
+            it.dateRaw = cleanVal;
+            it.dateDisplay = parsed.display8708 || cleanVal;
+            it.dateIso = parsed.iso || '';
+            it.dateParsed = parsed && parsed.day ? { day: parsed.day, monthAbbr: parsed.monthAbbr, monthFull: parsed.monthFull, yearBE: parsed.yearBE } : null;
+        } else if (field === 'location') {
+            it.locationRaw = cleanVal;
+            const resolved = resolveTvLocationRaw(cleanVal);
+            it.isFieldTrip = resolved.isFieldTrip;
+        } else {
+            it[field] = cleanVal;
+        }
+        tvrSavePlanStore(plan);
+
+        // ลิงก์อัปเดตไปที่แถวในตัวเบิก 8708 + บก.111 ทันทีเมื่อแก้วันที่หรือสถานที่!
+        if (field === 'date' || field === 'location') {
+            let linkedRow = null;
+            document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r) {
+                const k = tvrNormDateKey(r.querySelector('.day-date')?.value || '');
+                if (!linkedRow && oldDateKey && k === oldDateKey) linkedRow = r;
+            });
+            if (linkedRow) {
+                if (field === 'date') {
+                    const dtInp = linkedRow.querySelector('.day-date');
+                    if (dtInp) dtInp.value = it.dateDisplay;
+                } else if (field === 'location') {
+                    const resolved = resolveTvLocationRaw(it.locationRaw);
+                    const destInp = linkedRow.querySelector('.day-dest');
+                    if (destInp) destInp.value = resolved.destText;
+                    linkedRow.dataset.customStops = resolved.customStops.length ? JSON.stringify(resolved.customStops) : '';
+                    if (typeof global.setRowDestOrder === 'function') {
+                        global.setRowDestOrder(linkedRow, resolved.destOrder || []);
+                    }
+                    const fuelChk = linkedRow.querySelector('.day-fuel-chk');
+                    if (fuelChk) fuelChk.checked = !!resolved.isFieldTrip;
+                    renderRowDohStops(linkedRow);
+                }
+                if (typeof global.syncRowsToSummaryAndTotals === 'function') global.syncRowsToSummaryAndTotals();
+                if (typeof global.updatePreview === 'function') global.updatePreview();
+                if (typeof global.scheduleSave === 'function') global.scheduleSave();
+                if (typeof global.showToast === 'function') global.showToast('อัปเดตแผนและลิงก์เข้าตัวเบิก 8708 + บก.111 เรียบร้อยแล้ว');
+            }
+        }
+        // อัปเดตรายงานผล T&V ให้ตรงกันทันที
+        renderTvReport(false);
+    }
+
+    function addPlanRow() {
+        const plan = tvrEnsurePlanItems();
+        const cfg = getActiveOrgConfig();
+        const last = plan.items[plan.items.length - 1];
+        const defaultDate = (last && last.dateDisplay) ? last.dateDisplay : '1 พ.ย. 69';
+        const parsed = parseThaiDateCell(defaultDate);
+        plan.items.push({
+            seqNum: plan.items.length + 1,
+            category: 'การเยี่ยมเยียน (VISITING)',
+            activity: 'ปฏิบัติงานส่งเสริมการเกษตรในพื้นที่',
+            detail: 'ติดตามเยี่ยมเยียนเกษตรกร',
+            dateDisplay: parsed.display8708 || defaultDate,
+            dateRaw: defaultDate,
+            dateIso: parsed.iso || '',
+            dateParsed: parsed && parsed.day ? { day: parsed.day, monthAbbr: parsed.monthAbbr, monthFull: parsed.monthFull, yearBE: parsed.yearBE } : null,
+            locationRaw: 'หมู่ 1 ตำบล' + (cfg.officeTambon || cfg.amphoe),
+            targetCount: '10',
+            note: '',
+            isFieldTrip: true
+        });
+        tvrSavePlanStore(plan);
+        renderTvPlan();
+        renderTvReport(false);
+    }
+
+    function deletePlanRow(idx) {
+        const plan = tvrEnsurePlanItems();
+        if (!plan.items[idx]) return;
+        const removed = plan.items.splice(idx, 1)[0];
+        plan.items.forEach(function (it, i) { it.seqNum = i + 1; });
+        tvrSavePlanStore(plan);
+        renderTvPlan();
+        renderTvReport(false);
+        if (typeof global.showToast === 'function') {
+            global.showToast('ลบแถวแผนวันที่ ' + (removed.dateDisplay || '') + ' แล้ว (กด "🔄 ซิงก์เข้าตัวเบิก 8708" เพื่ออัปเดตตารางเบิกทั้งหมด)');
+        }
+    }
+
+    function syncPlanToClaim8708() {
+        const plan = tvrEnsurePlanItems();
+        const fieldItems = (plan.items || []).map(function (it) {
+            const parsed = parseThaiDateCell(it.dateDisplay || it.dateRaw);
+            const resolved = resolveTvLocationRaw(it.locationRaw);
+            return Object.assign({}, it, {
+                dateParsed: parsed,
+                dateDisplay: parsed.display8708 || it.dateDisplay || it.dateRaw,
+                dateIso: parsed.iso || it.dateIso || '',
+                isFieldTrip: resolved.isFieldTrip,
+                destOrder: resolved.destOrder,
+                destText: resolved.destText,
+                customStops: resolved.customStops
+            });
+        }).filter(function (it) { return it.isFieldTrip; }).sort(function (a, b) {
+            return (a.dateIso || '9999-99-99').localeCompare(b.dateIso || '9999-99-99');
+        });
+
+        if (!fieldItems.length) {
+            if (typeof global.showToast === 'function') global.showToast('ไม่พบวันออกพื้นที่ในแผนสำหรับซิงก์เข้าตัวเบิก');
+            return;
+        }
+
+        const existingMap = {};
+        document.querySelectorAll('#travel-days-list .travel-day-row').forEach(function (r) {
+            const k = tvrNormDateKey(r.querySelector('.day-date')?.value || '');
+            if (!k) return;
+            existingMap[k] = {
+                km: r.querySelector('.day-km')?.value || '',
+                amount: r.querySelector('.day-amount')?.value || '',
+                mapDataUrl: r.querySelector('.day-map-data')?.value || '',
+                dohOpened: r.dataset.dohOpened === '1',
+                out: r.querySelector('.day-out')?.value || '',
+                inn: r.querySelector('.day-in')?.value || ''
+            };
+        });
+
+        const list = document.getElementById('travel-days-list');
+        if (list && typeof global.createTravelDayRow === 'function') {
+            list.innerHTML = '';
+            fieldItems.forEach(function (it, i) {
+                const prev = existingMap[tvrNormDateKey(it.dateDisplay)] || null;
+                const tOut = (prev && prev.out) ? prev.out : '09.00';
+                const tIn = (prev && prev.inn) ? prev.inn : '16.00';
+                const sumT = typeof global.calcTimeDiff === 'function' ? global.calcTimeDiff(tOut, tIn) : '7.00';
+                const row = global.createTravelDayRow({
+                    date: it.dateDisplay,
+                    out: tOut,
+                    inn: tIn,
+                    sum: sumT,
+                    dest: it.destText,
+                    destOrder: it.destOrder,
+                    km: prev ? prev.km : '',
+                    amount: prev ? prev.amount : '',
+                    mapDataUrl: prev ? prev.mapDataUrl : '',
+                    fuelChecked: true
+                });
+                if (it.customStops && it.customStops.length) row.dataset.customStops = JSON.stringify(it.customStops);
+                if (prev && prev.dohOpened) row.dataset.dohOpened = '1';
+                list.appendChild(row);
+                renderRowDohStops(row);
+            });
+            document.querySelectorAll('.travel-day-row').forEach(function (row, idx) {
+                const num = row.querySelector('.day-row-num');
+                if (num) num.textContent = (idx + 1) + '.';
+            });
+        }
+        if (typeof global.syncRowsToSummaryAndTotals === 'function') global.syncRowsToSummaryAndTotals();
+        if (typeof global.updatePreview === 'function') global.updatePreview();
+        if (typeof global.scheduleSave === 'function') global.scheduleSave();
+        renderTvReport(false);
+        if (typeof global.showToast === 'function') {
+            global.showToast('ซิงก์แผนดำเนินงาน ' + fieldItems.length + ' วัน เข้าตัวเบิก 8708 + บก.111 เรียบร้อยแล้ว (คง กม. และรูปแผนที่เดิมไว้ครบ)');
+        }
+    }
+
+    function exportPlanWord() {
+        const bodyHtml = tvrBuildPlanDocumentHtml('word');
+        if (!bodyHtml) return;
+        const meta = tvrGetFormMeta();
+        const html = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>" +
+            "<head><meta charset='utf-8'><title>แผนการปฏิบัติงาน T&V</title>" +
+            "<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->" +
+            "<style>" +
+            "@page WordSection1 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 34pt 28pt 34pt 28pt; }" +
+            "div.WordSection1 { page: WordSection1; }" +
+            "body, table, td, th, div { font-family: 'TH SarabunIT๙', 'TH SarabunPSK', 'TH Sarabun New', sans-serif !important; mso-ascii-font-family: 'TH SarabunIT๙'; mso-hansi-font-family: 'TH SarabunIT๙'; mso-bidi-font-family: 'TH SarabunIT๙'; }" +
+            "tr { page-break-inside: avoid; }" +
+            "</style></head><body><div class='WordSection1'>" + bodyHtml + "</div></body></html>";
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = ('แผนดำเนินงาน_TV_' + meta.officerName).replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]+/g, '_');
+        a.download = safeName + '.doc';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+        if (typeof global.showToast === 'function') global.showToast('ดาวน์โหลด Word แผนดำเนินงาน T&V (แนวนอน A4) เรียบร้อยแล้ว');
     }
 
     function printPlanPdf() {
@@ -7855,6 +8110,12 @@ window.ORG = {
 
     global.__tvReport = {
         render: renderTvReport,
+        renderPlan: renderTvPlan,
+        updatePlanField: updatePlanField,
+        addPlanRow: addPlanRow,
+        deletePlanRow: deletePlanRow,
+        syncPlanToClaim8708: syncPlanToClaim8708,
+        exportPlanWord: exportPlanWord,
         toggleDone: toggleTvReportDone,
         updateField: updateTvReportField,
         exportWord: exportTvReportWord,
@@ -9317,23 +9578,34 @@ const ORG = window.ORG || {};
             mode = 'all';
             showToast('ยังไม่มีวันเบิกน้ำมัน — แสดงทั้งหมด / พิมพ์ 8708 ได้');
         }
-        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle', 'filter-tvreport');
+        document.body.classList.remove('filter-8708', 'filter-bg111', 'filter-vehicle', 'filter-tvreport', 'filter-tvplan');
         if (mode === '8708') document.body.classList.add('filter-8708');
         else if (mode === 'bg111') document.body.classList.add('filter-bg111');
         else if (mode === 'vehicle') document.body.classList.add('filter-vehicle');
         else if (mode === 'tvreport') document.body.classList.add('filter-tvreport');
+        else if (mode === 'tvplan') document.body.classList.add('filter-tvplan');
 
         const wc = document.getElementById('word-content');
         const tvr = document.getElementById('tv-report-view');
+        const tvp = document.getElementById('tv-plan-view');
         if (mode === 'tvreport') {
             if (wc) wc.style.display = 'none';
+            if (tvp) tvp.style.display = 'none';
             if (tvr) tvr.style.display = '';
             if (window.__tvReport && typeof window.__tvReport.render === 'function') {
                 window.__tvReport.render(false);
             }
+        } else if (mode === 'tvplan') {
+            if (wc) wc.style.display = 'none';
+            if (tvr) tvr.style.display = 'none';
+            if (tvp) tvp.style.display = '';
+            if (window.__tvReport && typeof window.__tvReport.renderPlan === 'function') {
+                window.__tvReport.renderPlan();
+            }
         } else {
             if (wc) wc.style.display = '';
             if (tvr) tvr.style.display = 'none';
+            if (tvp) tvp.style.display = 'none';
         }
 
         document.querySelectorAll('.doc-tab-btn').forEach(btn => {
