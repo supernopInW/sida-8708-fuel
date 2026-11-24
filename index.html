@@ -7363,6 +7363,11 @@ window.ORG = {
         return rows;
     }
 
+    function tvrFormatLocationHtml(loc) {
+        const s = escH(String(loc || '').trim());
+        return s.replace(/\s+(?=ตำบล|ต\.)/g, '<br>');
+    }
+
     function tvrBuildDocumentHtml(forExport) {
         const meta = tvrGetFormMeta();
         const rows = _tvrRowsState.length ? _tvrRowsState : tvrBuildRows(false);
@@ -7450,7 +7455,7 @@ window.ORG = {
                 <td${tdNotAttr}>${!r.done ? '√' : ''}</td>
                 <td style="${tdStyle}text-align:center;"${editAttr('result')}>${escH(r.result)}</td>
                 <td style="${tdStyle}text-align:center;white-space:nowrap;">${r.dateHtml}</td>
-                <td style="${tdStyle}"${editAttr('location')}>${escH(r.location)}</td>
+                <td style="${tdStyle}"${editAttr('location')}>${tvrFormatLocationHtml(r.location)}</td>
                 <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
                 <td style="${tdStyle}"${editAttr('problem')}>${escH(r.problem)}</td>
                 <td style="${tdStyle}"${editAttr('solution')}>${escH(r.solution)}</td>
