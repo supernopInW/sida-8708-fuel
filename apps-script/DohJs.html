@@ -2116,15 +2116,20 @@
         const officerPos = (document.getElementById('in-position')?.value || '').trim() || 'นักวิชาการส่งเสริมการเกษตรปฏิบัติการ';
         const bossName = (document.getElementById('in-boss-name')?.value || document.getElementById('in-app-name')?.value || '').trim() || '....................................';
         const bossPos = (document.getElementById('in-boss-pos')?.value || document.getElementById('in-app-pos')?.value || '').trim() || ('เกษตรอำเภอ' + cfg.amphoe);
+        const plan = tvrLoadPlan();
         const docMonth = (document.getElementById('in-doc-month')?.value || '').trim();
         const docYear = (document.getElementById('in-doc-year')?.value || '').trim();
         const depMy = (document.getElementById('in-dep-my')?.value || '').trim();
         let monthYear = '';
-        if (depMy) {
-            const parts = depMy.split(/\s+/);
-            monthYear = parts.length >= 2 ? ('ประจำเดือน ' + parts[0] + ' พ.ศ. ' + parts[1]) : ('ประจำเดือน ' + depMy);
+        if (plan && plan.monthHeader) {
+            monthYear = plan.monthHeader;
+        } else if (plan && Array.isArray(plan.items) && plan.items[0] && plan.items[0].dateParsed && plan.items[0].dateParsed.monthFull) {
+            monthYear = 'ประจำเดือน ' + plan.items[0].dateParsed.monthFull + ' พ.ศ. ' + plan.items[0].dateParsed.yearBE;
         } else if (docMonth && docYear) {
             monthYear = 'ประจำเดือน ' + docMonth + ' พ.ศ. ' + docYear;
+        } else if (depMy) {
+            const parts = depMy.split(/\s+/);
+            monthYear = parts.length >= 2 ? ('ประจำเดือน ' + parts[0] + ' พ.ศ. ' + parts[1]) : ('ประจำเดือน ' + depMy);
         } else {
             monthYear = 'ประจำเดือน ........................ พ.ศ. ........';
         }
@@ -3322,13 +3327,23 @@
             items: builtItems
         });
 
-        // อัปเดตเดือน/ปีเอกสารให้ตรงกันด้วย
+        // อัปเดตเดือน/ปีเอกสาร + วันออก-วันกลับในแบบ 8708 ให้ตรงกับเดือนที่สร้างแผนด้วย
         const docMonthEl = document.getElementById('in-doc-month');
         const docYearEl = document.getElementById('in-doc-year');
         const docDayEl = document.getElementById('in-doc-day');
         if (docMonthEl) docMonthEl.value = mFull[month];
         if (docYearEl) docYearEl.value = String(yearBE);
         if (docDayEl) docDayEl.value = String(daysInMonth);
+        if (fieldDays.length) {
+            const depDayEl = document.getElementById('in-dep-day');
+            const depMyEl = document.getElementById('in-dep-my');
+            const retDayEl = document.getElementById('in-ret-day');
+            const retMyEl = document.getElementById('in-ret-my');
+            if (depDayEl) depDayEl.value = String(fieldDays[0].day);
+            if (depMyEl) depMyEl.value = mFull[month] + ' ' + yearBE;
+            if (retDayEl) retDayEl.value = String(fieldDays[fieldDays.length - 1].day);
+            if (retMyEl) retMyEl.value = mFull[month] + ' ' + yearBE;
+        }
 
         closeBuilderModal();
         renderTvPlan();
