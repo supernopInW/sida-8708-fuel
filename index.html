@@ -7368,16 +7368,79 @@ window.ORG = {
         const rows = _tvrRowsState.length ? _tvrRowsState : tvrBuildRows(false);
         const ce = forExport ? '' : ' contenteditable="true" spellcheck="false"';
 
-        const thStyle = 'border:1px solid #000;padding:4px 5px;text-align:center;vertical-align:top;font-weight:700;font-size:15pt;line-height:1.15;';
+        const thStyle = 'border:1px solid #000;padding:4px 4px;text-align:center;vertical-align:top;font-weight:700;font-size:15pt;line-height:1.15;';
         const tdStyle = 'border:1px solid #000;padding:4px 5px;vertical-align:top;font-size:15pt;line-height:1.2;';
 
-        const bodyRowsHtml = rows.length ? rows.map(function (r, idx) {
-            const clickDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${idx}, true)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
-            const clickNotDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${idx}, false)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
+        const header4LinesHtml = `
+            <div style="text-align:center;font-weight:700;font-size:17pt;line-height:1.35;margin-bottom:8px;">
+                <div>รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
+                <div>${escH(meta.officerName)}</div>
+                <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
+                <div>${escH(meta.monthYear)}</div>
+            </div>`;
+
+        const tableHeadHtml = `
+            <colgroup>
+                <col style="width:4%;">
+                <col style="width:12%;">
+                <col style="width:13%;">
+                <col style="width:5%;">
+                <col style="width:6%;">
+                <col style="width:6%;">
+                <col style="width:11%;">
+                <col style="width:15%;">
+                <col style="width:7%;">
+                <col style="width:7%;">
+                <col style="width:7%;">
+                <col style="width:7%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2" style="${thStyle}">ลำดับ</th>
+                    <th rowspan="2" style="${thStyle}">ประเด็น</th>
+                    <th colspan="3" style="${thStyle}">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>
+                    <th rowspan="2" style="${thStyle}">ผล<br>ดำเนิน<br>งาน</th>
+                    <th rowspan="2" style="${thStyle}">วันที่<br>ดำเนินการ</th>
+                    <th rowspan="2" style="${thStyle}">สถานที่ดำเนินการ</th>
+                    <th rowspan="2" style="${thStyle}">จำนวน<br>บุคคล<br>เป้าหมาย<br>(ราย/<br>กลุ่ม)</th>
+                    <th rowspan="2" style="${thStyle}">ปัญหา<br>อุปสรรค</th>
+                    <th rowspan="2" style="${thStyle}">แนว<br>ทางแก้ไข</th>
+                    <th rowspan="2" style="${thStyle}">ข้อเสนอ<br>แนะ</th>
+                </tr>
+                <tr>
+                    <th style="${thStyle}">กิจกรรม</th>
+                    <th style="${thStyle}">ดำเนิน<br>การ</th>
+                    <th style="${thStyle}">ไม่ได้<br>ดำเนิน<br>การ</th>
+                </tr>
+            </thead>`;
+
+        const signHtml = `
+            <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
+                <tr>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.officerName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
+                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
+                        <div style="margin-top:18px;">........................................................</div>
+                        <div>( ${escH(meta.bossName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                    </td>
+                </tr>
+            </table>`;
+
+        const renderRowTr = function (r, globalIdx) {
+            const clickDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${globalIdx}, true)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
+            const clickNotDone = forExport ? '' : ` onclick="window.__tvReport.toggleDone(${globalIdx}, false)" style="${tdStyle}text-align:center;cursor:pointer;" title="คลิกเพื่อสลับ ดำเนินการ/ไม่ได้ดำเนินการ"`;
             const tdDoneAttr = forExport ? ` style="${tdStyle}text-align:center;"` : clickDone;
             const tdNotAttr = forExport ? ` style="${tdStyle}text-align:center;"` : clickNotDone;
             const editAttr = function (field) {
-                return forExport ? '' : (ce + ` onblur="window.__tvReport.updateField(${idx}, '${field}', this.innerText)"`);
+                return forExport ? '' : (ce + ` onblur="window.__tvReport.updateField(${globalIdx}, '${field}', this.innerText)"`);
             };
             return `<tr>
                 <td style="${tdStyle}text-align:center;">${r.seq}</td>
@@ -7393,79 +7456,65 @@ window.ORG = {
                 <td style="${tdStyle}"${editAttr('solution')}>${escH(r.solution)}</td>
                 <td style="${tdStyle}"${editAttr('suggestion')}>${escH(r.suggestion)}</td>
             </tr>`;
-        }).join('') : `<tr><td colspan="12" style="${tdStyle}text-align:center;padding:16px;color:#64748b;">ยังไม่มีข้อมูลวันเดินทาง (กรุณานำเข้าแผน T&amp;V (.docx) หรือเพิ่มวันเดินทางในฟอร์มด้านซ้าย)</td></tr>`;
+        };
 
-        return `
-        <div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">
-            <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:none;">
-                <colgroup>
-                    <col style="width:4%;">
-                    <col style="width:12%;">
-                    <col style="width:13%;">
-                    <col style="width:5%;">
-                    <col style="width:6%;">
-                    <col style="width:6%;">
-                    <col style="width:11%;">
-                    <col style="width:15%;">
-                    <col style="width:7%;">
-                    <col style="width:7%;">
-                    <col style="width:7%;">
-                    <col style="width:7%;">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th colspan="12" style="border:none !important;padding:0 0 10px 0;text-align:center;font-weight:700;font-size:17pt;line-height:1.35;background:transparent;">
-                            <div>รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</div>
-                            <div>${escH(meta.officerName)}</div>
-                            <div>หน่วยงาน ${escH(meta.officeName)} จังหวัด${escH(meta.province)}</div>
-                            <div>${escH(meta.monthYear)}</div>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th rowspan="2" style="${thStyle}">ลำดับ</th>
-                        <th rowspan="2" style="${thStyle}">ประเด็น</th>
-                        <th colspan="3" style="${thStyle}">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>
-                        <th rowspan="2" style="${thStyle}">ผล<br>ดำเนิน<br>งาน</th>
-                        <th rowspan="2" style="${thStyle}">วันที่<br>ดำเนินการ</th>
-                        <th rowspan="2" style="${thStyle}">สถานที่ดำเนินการ</th>
-                        <th rowspan="2" style="${thStyle}">จำนวน<br>บุคคล<br>เป้าหมาย<br>(ราย/<br>กลุ่ม)</th>
-                        <th rowspan="2" style="${thStyle}">ปัญหา<br>อุปสรรค</th>
-                        <th rowspan="2" style="${thStyle}">แนว<br>ทางแก้ไข</th>
-                        <th rowspan="2" style="${thStyle}">ข้อเสนอ<br>แนะ</th>
-                    </tr>
-                    <tr>
-                        <th style="${thStyle}">กิจกรรม</th>
-                        <th style="${thStyle}">ดำเนิน<br>การ</th>
-                        <th style="${thStyle}">ไม่ได้<br>ดำเนิน<br>การ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${bodyRowsHtml}
-                    <tr style="page-break-inside:avoid;">
-                        <td colspan="12" style="border:none !important;padding:22px 0 0 0;">
-                            <table style="width:100%;border:none;border-collapse:collapse;page-break-inside:avoid;">
-                                <tr>
-                                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
-                                        <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
-                                        <div style="margin-top:18px;">........................................................</div>
-                                        <div>( ${escH(meta.officerName)} )</div>
-                                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
-                                    </td>
-                                    <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
-                                        <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
-                                        <div style="margin-top:18px;">........................................................</div>
-                                        <div>( ${escH(meta.bossName)} )</div>
-                                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>`;
+        if (!rows.length) {
+            return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">
+                <div class="tvr-page">${header4LinesHtml}
+                    <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+                        ${tableHeadHtml}
+                        <tbody><tr><td colspan="12" style="${tdStyle}text-align:center;padding:16px;color:#64748b;">ยังไม่มีข้อมูลวันเดินทาง (กรุณานำเข้าแผน T&amp;V (.docx) หรือเพิ่มวันเดินทางในฟอร์มด้านซ้าย)</td></tr></tbody>
+                    </table>
+                    ${signHtml}
+                </div>
+            </div>`;
+        }
+
+        // แบ่งหน้าอัตโนมัติตามน้ำหนักความสูงข้อความแต่ละแถว (ล็อกหัว 4 บรรทัด + หัวตารางครบทุกหน้า 100%)
+        const MAX_WEIGHT_PER_PAGE = 15;
+        const pages = [];
+        let curPage = [];
+        let curWeight = 0;
+        rows.forEach(function (r, idx) {
+            const actLines = Math.max(1, Math.ceil(String(r.activity || '').length / 18));
+            const locLines = Math.max(1, Math.ceil(String(r.location || '').length / 22));
+            const w = Math.max(2, actLines, locLines);
+            if (curPage.length > 0 && (curWeight + w > MAX_WEIGHT_PER_PAGE || curPage.length >= 6)) {
+                pages.push(curPage);
+                curPage = [];
+                curWeight = 0;
+            }
+            curPage.push({ row: r, idx: idx, weight: w });
+            curWeight += w;
+        });
+        if (curPage.length) pages.push(curPage);
+
+        // ถ้าหน้าสุดท้ายมีแถวเยอะจนใส่ลายเซ็นไม่พอ ให้ขึ้นหน้าลงนามแยกพร้อมหัวรายงาน 4 บรรทัดเหมือนต้นฉบับหน้า 8
+        const lastPageWeight = pages[pages.length - 1].reduce(function (acc, x) { return acc + x.weight; }, 0);
+        const separateSignPage = lastPageWeight > 9;
+
+        const pageBreakHtml = forExport
+            ? '<br clear="all" style="page-break-before:always;mso-break-type:page-break;mso-special-character:line-break" />'
+            : '<div class="no-print" style="height:18px;border-bottom:2px dashed #cbd5e1;margin:18px 0;text-align:center;font-size:11px;color:#94a3b8;">— ขึ้นหน้าใหม่ (ล็อกหัวรายงานทุกหน้า) —</div>';
+
+        const pageDivs = pages.map(function (pg, pIdx) {
+            const isLastTablePage = (pIdx === pages.length - 1);
+            const trsHtml = pg.map(function (item) { return renderRowTr(item.row, item.idx); }).join('');
+            return `<div class="tvr-page" style="${pIdx > 0 && forExport ? '' : ''}">
+                ${header4LinesHtml}
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;border:1px solid #000;">
+                    ${tableHeadHtml}
+                    <tbody>${trsHtml}</tbody>
+                </table>
+                ${isLastTablePage && !separateSignPage ? signHtml : ''}
+            </div>`;
+        });
+
+        if (separateSignPage) {
+            pageDivs.push(`<div class="tvr-page">${header4LinesHtml}<div style="margin-top:42px;">${signHtml}</div></div>`);
+        }
+
+        return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">${pageDivs.join(pageBreakHtml)}</div>`;
     }
 
     function renderTvReport(forceSync) {
