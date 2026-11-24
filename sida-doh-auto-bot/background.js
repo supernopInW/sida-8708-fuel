@@ -603,7 +603,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
 
   if (msg.type === 'PING') {
-    sendResponse({ ok: true, version: '1.2.1', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
+    sendResponse({ ok: true, version: '1.2.2', name: 'DOH Auto-Bot (แบบ 8708 + T&V ทุกอำเภอ)' });
     return false;
   }
 
@@ -668,6 +668,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 /* ==================== T&V DOAE Work Plan Auto-Sender (tandv.doae.go.th) ==================== */
 const TANDV_START_URL = 'https://tandv.doae.go.th/workflow/workflow_start.php?W=26';
+const TANDV_LOGIN_URL = 'https://tandv.doae.go.th/index/login_tv_system.php';
 
 function waitTabReady(tabId, timeoutMs = 25000) {
   return new Promise((resolve) => {
@@ -707,13 +708,30 @@ async function runTvSendJob(job) {
 
     const tabInfo = await chrome.tabs.get(tabId);
     const curUrl = (tabInfo && tabInfo.url) || '';
-    if (!/tandv\.doae\.go\.th\/workflow\/workflow_start\.php/i.test(curUrl)) {
-      await chrome.tabs.update(tabId, { active: true });
+    let needsLogin = !/tandv\.doae\.go\.th\/workflow\/workflow_start\.php/i.test(curUrl);
+    if (!needsLogin) {
+      try {
+        const chk = await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          world: 'MAIN',
+          func: () => !!(document.getElementById('form_wf') && document.getElementById('PL_YAER'))
+        });
+        if (!(chk && chk[0] && chk[0].result)) needsLogin = true;
+      } catch (e) {
+        needsLogin = true;
+      }
+    }
+    if (needsLogin) {
+      if (!/doaepass\.doae\.go\.th/i.test(curUrl)) {
+        await chrome.tabs.update(tabId, { url: TANDV_LOGIN_URL, active: true });
+      } else {
+        await chrome.tabs.update(tabId, { active: true });
+      }
       sendToApp(job, {
         type: 'TV_SEND_AUTH_REQUIRED',
         jobId: job.jobId,
-        url: curUrl,
-        message: 'กรุณาเข้าสู่ระบบ DOAE Pass / เว็บ T&V ในแท็บที่เปิดขึ้นมาให้เรียบร้อยก่อน แล้วกลับมากดส่งแผนอีกครั้งครับ'
+        url: TANDV_LOGIN_URL,
+        message: 'ยังไม่ได้เข้าสู่ระบบ T&V — เปิดหน้าสแกน ThaiD (DOAE Pass) ให้แล้วครับ สแกนเข้าสู่ระบบเรียบร้อยแล้วกลับมากดปุ่ม "🚀 ส่งแผนเข้าเว็บ T&V" อีกครั้งได้เลย'
       });
       return;
     }
