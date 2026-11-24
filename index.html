@@ -7217,11 +7217,67 @@ window.ORG = {
         try { localStorage.setItem(TVR_EDITS_KEY, JSON.stringify(edits)); } catch (e) { /* ignore */ }
     }
 
+    function tvrGetDocDateIso() {
+        const dRaw = (document.getElementById('in-doc-day')?.value || '').replace(/[๐-๙]/g, function (c) {
+            return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
+        }).replace(/\D+/g, '');
+        const mRaw = (document.getElementById('in-doc-month')?.value || '').trim();
+        const yRaw = (document.getElementById('in-doc-year')?.value || '').replace(/[๐-๙]/g, function (c) {
+            return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
+        }).replace(/\D+/g, '');
+        const day = parseInt(dRaw, 10);
+        const yearBE = parseInt(yRaw, 10);
+        const mMap = {
+            'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3, 'เมษายน': 4, 'พฤษภาคม': 5, 'มิถุนายน': 6,
+            'กรกฎาคม': 7, 'สิงหาคม': 8, 'กันยายน': 9, 'ตุลาคม': 10, 'พฤศจิกายน': 11, 'ธันวาคม': 12
+        };
+        const month = mMap[mRaw] || 0;
+        if (!day || !month || !yearBE) return '';
+        const yCE = yearBE > 2400 ? (yearBE - 543) : yearBE;
+        return String(yCE).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    }
+
+    function tvrToIso(dateIso, dateParsed, dateDisplay, dateRaw) {
+        if (dateIso && /^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return dateIso;
+        const mAbbr = {
+            'ม.ค': 1, 'ก.พ': 2, 'มี.ค': 3, 'เม.ย': 4, 'พ.ค': 5, 'มิ.ย': 6,
+            'ก.ค': 7, 'ส.ค': 8, 'ก.ย': 9, 'ต.ค': 10, 'พ.ย': 11, 'ธ.ค': 12
+        };
+        const mFull = {
+            'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3, 'เมษายน': 4, 'พฤษภาคม': 5, 'มิถุนายน': 6,
+            'กรกฎาคม': 7, 'สิงหาคม': 8, 'กันยายน': 9, 'ตุลาคม': 10, 'พฤศจิกายน': 11, 'ธันวาคม': 12
+        };
+        if (dateParsed && dateParsed.day && dateParsed.yearBE) {
+            const mo = mFull[dateParsed.monthFull] || mAbbr[String(dateParsed.monthAbbr || '').replace(/\.$/, '')] || 0;
+            if (mo) {
+                const yCE = dateParsed.yearBE > 2400 ? (dateParsed.yearBE - 543) : dateParsed.yearBE;
+                return String(yCE).padStart(4, '0') + '-' + String(mo).padStart(2, '0') + '-' + String(dateParsed.day).padStart(2, '0');
+            }
+        }
+        const s = String(dateDisplay || dateRaw || '').replace(/[๐-๙]/g, function (c) {
+            return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c));
+        }).trim();
+        const m = s.match(/(\d{1,2})\s*([ก-ฮ]+\.?)\s*(\d{2,4})/);
+        if (m) {
+            const day = parseInt(m[1], 10);
+            const mk = m[2].replace(/\.$/, '');
+            const mo = mAbbr[mk] || mFull[mk] || 0;
+            const yNum = parseInt(m[3], 10);
+            const yBE = yNum < 100 ? (2500 + yNum) : yNum;
+            const yCE = yBE > 2400 ? (yBE - 543) : yBE;
+            if (day && mo && yCE) {
+                return String(yCE).padStart(4, '0') + '-' + String(mo).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            }
+        }
+        return '';
+    }
+
     function tvrBuildRows(forceSyncFromClaim) {
         const edits = forceSyncFromClaim ? {} : tvrLoadEdits();
         if (forceSyncFromClaim) tvrSaveEdits({});
         const meetingDone = !!(document.getElementById('tvr-opt-meeting-done')?.checked);
         const onlyDone = !!(document.getElementById('tvr-opt-only-done')?.checked);
+        const docDateIso = tvrGetDocDateIso();
 
         // เก็บวันที่ทั้งหมดในตารางวันเดินทางที่เบิก (แบบ 8708)
         const claimedDates = new Set();
@@ -7236,6 +7292,7 @@ window.ORG = {
                 seqNum: idx + 1,
                 dateDisplay: dt,
                 dateKey: k,
+                dateIso: tvrToIso('', null, dt, dt),
                 dest: dest
             });
         });
@@ -7246,9 +7303,11 @@ window.ORG = {
         if (plan && Array.isArray(plan.items) && plan.items.length) {
             rows = plan.items.map(function (it, idx) {
                 const dKey = tvrNormDateKey(it.dateDisplay || it.dateRaw);
+                const rIso = tvrToIso(it.dateIso, it.dateParsed, it.dateDisplay, it.dateRaw);
+                const isAfterDocDate = !!(docDateIso && rIso && rIso > docDateIso);
                 const isClaimed = claimedDates.has(dKey);
                 const isMeeting = !it.isFieldTrip;
-                const defaultDone = isClaimed || (isMeeting && meetingDone);
+                const defaultDone = !isAfterDocDate && (isClaimed || (isMeeting && meetingDone));
                 const rowKey = 'p_' + (it.seqNum || (idx + 1)) + '_' + dKey;
                 const ed = edits[rowKey] || {};
                 const done = (typeof ed.done === 'boolean') ? ed.done : defaultDone;
@@ -7268,12 +7327,13 @@ window.ORG = {
                 };
             });
         } else {
-            // กรณีไม่ได้นำเข้า .docx — สร้างจากวันที่เบิกในแบบ 8708 โดยตรง
+            // กรณีไม่ได้นำเข้า .docx — สร้างจากวันที่เบิกในแบบ 8708 โดยตรง (ตัดยอดถึงวันที่หนังสือ)
             const cfg = getActiveOrgConfig();
             rows = claimedRowsList.map(function (cr, idx) {
                 const rowKey = 'c_' + (idx + 1) + '_' + cr.dateKey;
                 const ed = edits[rowKey] || {};
-                const done = (typeof ed.done === 'boolean') ? ed.done : true;
+                const isAfterDocDate = !!(docDateIso && cr.dateIso && cr.dateIso > docDateIso);
+                const done = (typeof ed.done === 'boolean') ? ed.done : !isAfterDocDate;
                 const cleanLoc = cr.dest
                     .replace(new RegExp('\\s*อำเภอ' + cfg.amphoe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*จังหวัด' + cfg.province.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'g'), '')
                     .trim() || cfg.officeName;
