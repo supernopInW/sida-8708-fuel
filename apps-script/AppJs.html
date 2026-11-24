@@ -1996,6 +1996,9 @@ const ORG = window.ORG || {};
         const allowTotalEl = document.getElementById('in-allowance-total');
         const rateTextEl = document.getElementById('in-rate-text');
 
+        const posVal = (document.getElementById('in-position')?.value || '').trim();
+        const isChiefAuthor = posVal.indexOf('เกษตรอำเภอ') !== -1;
+
         if (isTvOnly) {
             if (syncClaimEl) syncClaimEl.checked = false;
             if (rateClaimEl) {
@@ -2007,6 +2010,7 @@ const ORG = window.ORG || {};
             if (rateTextEl && typeof toThaiBahtText === 'function') rateTextEl.value = toThaiBahtText(0);
             if (banner) {
                 banner.classList.remove('hidden');
+                banner.className = 'mb-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-950 leading-relaxed';
                 banner.innerHTML =
                     '<div class="font-bold text-amber-900 mb-1">ℹ️ โหมดลงแผนและรายงานผล T&amp;V อย่างเดียว</div>' +
                     '<div class="text-[11px] mb-2"><b>' + escHtml(name) + '</b> (' + escHtml(personPositions[name] || 'เจ้าพนักงานธุรการ') + ') ไม่มีสิทธิเบิกเบี้ยเลี้ยง — ระบบตั้งค่าเบี้ยเลี้ยงเป็น <b>0 บาท</b> ให้อัตโนมัติ สามารถสร้างแผน, ส่งแผนเข้าเว็บ T&amp;V และพิมพ์รายงานผล T&amp;V ได้ตามปกติ</div>' +
@@ -2017,6 +2021,24 @@ const ORG = window.ORG || {};
                     '</div>';
             }
             if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+        } else if (isChiefAuthor) {
+            if (rateClaimEl && rateClaimEl.dataset.tvOnlyZero === '1') {
+                rateClaimEl.dataset.tvOnlyZero = '0';
+                rateClaimEl.dataset.manual = '0';
+                if (syncClaimEl) syncClaimEl.checked = true;
+                if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+            }
+            if (banner) {
+                const curDc = (document.getElementById('in-district-chief-name')?.value || '').trim() ||
+                    (function () { try { return localStorage.getItem('sida_district_chief_name_v1') || ''; } catch (e) { return ''; } })();
+                banner.classList.remove('hidden');
+                banner.className = 'mb-3 p-2.5 rounded-lg border border-violet-300 bg-violet-50 text-xs text-violet-950 leading-relaxed';
+                banner.innerHTML =
+                    '<div class="font-bold text-violet-900 mb-1">👔 โหมดเกษตรอำเภอจัดทำแผน T&amp;V</div>' +
+                    '<div class="text-[11px] mb-1.5">• ลายเซ็นท้ายแผน/รายงาน: <b>ซ้าย = เกษตรอำเภอ</b> · <b>ขวา = นายอำเภอ' + escHtml((window.SIDA_ORG_CONFIG && window.SIDA_ORG_CONFIG.amphoe) || 'สีดา') + '</b><br>• ตอนส่งแผนเข้าเว็บ T&amp;V ระบบจะเลือกผู้อนุมัติเป็น <b>ตัวเอง</b> อัตโนมัติ</div>' +
+                    '<label class="block text-[11px] font-semibold text-violet-900 mb-0.5">ชื่อ-สกุล นายอำเภอ (พิมพ์เพิ่มเอง):</label>' +
+                    '<input type="text" value="' + escAttr(curDc) + '" placeholder="เช่น นายสมชาย ใจดี" oninput="window.__tvReport?.setDistrictChiefName?.(this.value)" class="w-full border border-violet-300 rounded px-2 py-1 text-xs bg-white outline-none focus:border-violet-600">';
+            }
         } else {
             if (banner) {
                 banner.classList.add('hidden');

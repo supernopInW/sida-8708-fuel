@@ -2124,6 +2124,24 @@
         return escH(s || '-');
     }
 
+    const DISTRICT_CHIEF_STORAGE_KEY = 'sida_district_chief_name_v1';
+
+    function getDistrictChiefName() {
+        const inp = document.getElementById('in-district-chief-name');
+        const v = (inp && inp.value || '').trim();
+        if (v) return v;
+        try { return (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim(); } catch (e) { return ''; }
+    }
+
+    function setDistrictChiefName(val) {
+        const clean = String(val || '').replace(/^\(\s*|\s*\)$/g, '').trim();
+        try { localStorage.setItem(DISTRICT_CHIEF_STORAGE_KEY, clean); } catch (e) { /* ignore */ }
+        const inp = document.getElementById('in-district-chief-name');
+        if (inp && inp.value !== clean) inp.value = clean;
+        renderTvPlan();
+        renderTvReport(false);
+    }
+
     function tvrGetFormMeta() {
         const cfg = getActiveOrgConfig();
         const nameSel = document.getElementById('in-name');
@@ -2132,6 +2150,14 @@
         const officerPos = (document.getElementById('in-position')?.value || '').trim() || 'นักวิชาการส่งเสริมการเกษตรปฏิบัติการ';
         const bossName = (document.getElementById('in-boss-name')?.value || document.getElementById('in-app-name')?.value || '').trim() || '....................................';
         const bossPos = (document.getElementById('in-boss-pos')?.value || document.getElementById('in-app-pos')?.value || '').trim() || ('เกษตรอำเภอ' + cfg.amphoe);
+        const isChiefAuthor = officerPos.indexOf('เกษตรอำเภอ') !== -1;
+        const dcName = getDistrictChiefName();
+        const leftPos = isChiefAuthor
+            ? (officerPos === 'เกษตรอำเภอ' ? ('เกษตรอำเภอ' + cfg.amphoe) : officerPos)
+            : officerPos;
+        const rightName = isChiefAuthor ? (dcName || '....................................') : bossName;
+        const rightPos = isChiefAuthor ? ('นายอำเภอ' + cfg.amphoe) : bossPos;
+        const rightOrg = isChiefAuthor ? ('อำเภอ' + cfg.amphoe) : cfg.officeName;
         const plan = tvrLoadPlan();
         const docMonth = (document.getElementById('in-doc-month')?.value || '').trim();
         const docYear = (document.getElementById('in-doc-year')?.value || '').trim();
@@ -2152,6 +2178,13 @@
         return {
             officerName: officerName,
             officerPos: officerPos,
+            isChiefAuthor: isChiefAuthor,
+            leftName: officerName,
+            leftPos: leftPos,
+            leftOrg: cfg.officeName,
+            rightName: rightName,
+            rightPos: rightPos,
+            rightOrg: rightOrg,
             officeName: cfg.officeName,
             province: cfg.province,
             bossName: bossName,
@@ -2397,22 +2430,25 @@
                 </tr>
             </thead>`;
 
+        const rightNameHtml = (!forExport && meta.isChiefAuthor)
+            ? `<span contenteditable="true" spellcheck="false" title="คลิกพิมพ์ชื่อนายอำเภอได้ทันที" onblur="window.__tvReport?.setDistrictChiefName?.(this.innerText)" style="border-bottom:1px dashed #7c3aed;min-width:120px;display:inline-block;">${escH(meta.rightName)}</span>`
+            : escH(meta.rightName);
         const signHtml = `
             <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
                 <tr>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.officerName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${escH(meta.leftName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.leftPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.leftOrg)}</div>
                     </td>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.bossName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${rightNameHtml} )</div>
+                        <div>ตำแหน่ง ${escH(meta.rightPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.rightOrg)}</div>
                     </td>
                 </tr>
             </table>`;
@@ -2975,22 +3011,25 @@
                 </tr>
             </thead>`;
 
+        const planRightNameHtml = (isScreen && meta.isChiefAuthor)
+            ? `<span contenteditable="true" spellcheck="false" title="คลิกพิมพ์ชื่อนายอำเภอได้ทันที" onblur="window.__tvReport?.setDistrictChiefName?.(this.innerText)" style="border-bottom:1px dashed #7c3aed;min-width:120px;display:inline-block;">${escH(meta.rightName)}</span>`
+            : escH(meta.rightName);
         const signHtml = `
             <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
                 <tr>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้จัดทำแผน</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.officerName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${escH(meta.leftName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.leftPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.leftOrg)}</div>
                     </td>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.bossName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${planRightNameHtml} )</div>
+                        <div>ตำแหน่ง ${escH(meta.rightPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.rightOrg)}</div>
                     </td>
                 </tr>
             </table>`;
@@ -3762,6 +3801,7 @@
         saveCurrentAsChiefPlan: saveCurrentAsChiefPlan,
         applyChiefPlan: applyChiefPlan,
         toggleChiefList: toggleChiefList,
+        setDistrictChiefName: setDistrictChiefName,
         render: renderTvReport,
         renderPlan: renderTvPlan,
         updatePlanField: updatePlanField,
@@ -3789,6 +3829,11 @@
         const initAllTvPanels = function () {
             initDohBotOnLoad();
             renderChiefPlanPanel();
+            try {
+                const savedDc = (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim();
+                const dcInp = document.getElementById('in-district-chief-name');
+                if (dcInp && !dcInp.value && savedDc) dcInp.value = savedDc;
+            } catch (e) { /* ignore */ }
         };
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initAllTvPanels);

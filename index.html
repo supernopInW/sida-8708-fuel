@@ -4043,7 +4043,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                     </div>
                     <div class="mb-3">
                         <label class="block text-xs text-gray-600 mb-1">ตำแหน่ง</label>
-                        <select id="in-position" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-blue-500">
+                        <select id="in-position" onchange="if(typeof applyPersonTvOnlyMode==='function') applyPersonTvOnlyMode(document.getElementById('in-name')?.value); if(typeof updatePreview==='function') updatePreview();" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-blue-500">
                             <option value="นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" selected>นักวิชาการส่งเสริมการเกษตรปฏิบัติการ</option>
                             <option value="นักวิชาการส่งเสริมการเกษตรชำนาญการ">นักวิชาการส่งเสริมการเกษตรชำนาญการ</option>
                             <option value="นักวิชาการส่งเสริมการเกษตรชำนาญการพิเศษ">นักวิชาการส่งเสริมการเกษตรชำนาญการพิเศษ</option>
@@ -4330,8 +4330,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200" data-fw-section="boss">
                     <div class="form-section-title !text-green-600 !border-green-500">✅ เกษตรอำเภอ / นายอำเภอ</div>
-                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อ-สกุล</label><input type="text" id="in-boss-name" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
+                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อ-สกุล (เกษตรอำเภอ)</label><input type="text" id="in-boss-name" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
                     <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ตำแหน่ง</label><input type="text" id="in-boss-pos" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
+                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อนายอำเภอ <span class="text-[10px] text-slate-400">(ใช้ลงนามด้านขวาเมื่อเกษตรอำเภอเป็นผู้ทำแผน T&amp;V)</span></label><input type="text" id="in-district-chief-name" value="" placeholder="พิมพ์ชื่อ-สกุล นายอำเภอ (เพิ่มเอง)" oninput="window.__tvReport?.setDistrictChiefName?.(this.value)" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-green-600"></div>
                     <div><label class="block text-xs text-gray-600 mb-1">วันที่</label><input type="text" id="in-boss-date" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
                 </div>
 
@@ -7251,6 +7252,24 @@ window.ORG = {
         return escH(s || '-');
     }
 
+    const DISTRICT_CHIEF_STORAGE_KEY = 'sida_district_chief_name_v1';
+
+    function getDistrictChiefName() {
+        const inp = document.getElementById('in-district-chief-name');
+        const v = (inp && inp.value || '').trim();
+        if (v) return v;
+        try { return (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim(); } catch (e) { return ''; }
+    }
+
+    function setDistrictChiefName(val) {
+        const clean = String(val || '').replace(/^\(\s*|\s*\)$/g, '').trim();
+        try { localStorage.setItem(DISTRICT_CHIEF_STORAGE_KEY, clean); } catch (e) { /* ignore */ }
+        const inp = document.getElementById('in-district-chief-name');
+        if (inp && inp.value !== clean) inp.value = clean;
+        renderTvPlan();
+        renderTvReport(false);
+    }
+
     function tvrGetFormMeta() {
         const cfg = getActiveOrgConfig();
         const nameSel = document.getElementById('in-name');
@@ -7259,6 +7278,14 @@ window.ORG = {
         const officerPos = (document.getElementById('in-position')?.value || '').trim() || 'นักวิชาการส่งเสริมการเกษตรปฏิบัติการ';
         const bossName = (document.getElementById('in-boss-name')?.value || document.getElementById('in-app-name')?.value || '').trim() || '....................................';
         const bossPos = (document.getElementById('in-boss-pos')?.value || document.getElementById('in-app-pos')?.value || '').trim() || ('เกษตรอำเภอ' + cfg.amphoe);
+        const isChiefAuthor = officerPos.indexOf('เกษตรอำเภอ') !== -1;
+        const dcName = getDistrictChiefName();
+        const leftPos = isChiefAuthor
+            ? (officerPos === 'เกษตรอำเภอ' ? ('เกษตรอำเภอ' + cfg.amphoe) : officerPos)
+            : officerPos;
+        const rightName = isChiefAuthor ? (dcName || '....................................') : bossName;
+        const rightPos = isChiefAuthor ? ('นายอำเภอ' + cfg.amphoe) : bossPos;
+        const rightOrg = isChiefAuthor ? ('อำเภอ' + cfg.amphoe) : cfg.officeName;
         const plan = tvrLoadPlan();
         const docMonth = (document.getElementById('in-doc-month')?.value || '').trim();
         const docYear = (document.getElementById('in-doc-year')?.value || '').trim();
@@ -7279,6 +7306,13 @@ window.ORG = {
         return {
             officerName: officerName,
             officerPos: officerPos,
+            isChiefAuthor: isChiefAuthor,
+            leftName: officerName,
+            leftPos: leftPos,
+            leftOrg: cfg.officeName,
+            rightName: rightName,
+            rightPos: rightPos,
+            rightOrg: rightOrg,
             officeName: cfg.officeName,
             province: cfg.province,
             bossName: bossName,
@@ -7524,22 +7558,25 @@ window.ORG = {
                 </tr>
             </thead>`;
 
+        const rightNameHtml = (!forExport && meta.isChiefAuthor)
+            ? `<span contenteditable="true" spellcheck="false" title="คลิกพิมพ์ชื่อนายอำเภอได้ทันที" onblur="window.__tvReport?.setDistrictChiefName?.(this.innerText)" style="border-bottom:1px dashed #7c3aed;min-width:120px;display:inline-block;">${escH(meta.rightName)}</span>`
+            : escH(meta.rightName);
         const signHtml = `
             <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
                 <tr>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้จัดทำรายงาน</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.officerName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${escH(meta.leftName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.leftPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.leftOrg)}</div>
                     </td>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.bossName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${rightNameHtml} )</div>
+                        <div>ตำแหน่ง ${escH(meta.rightPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.rightOrg)}</div>
                     </td>
                 </tr>
             </table>`;
@@ -8102,22 +8139,25 @@ window.ORG = {
                 </tr>
             </thead>`;
 
+        const planRightNameHtml = (isScreen && meta.isChiefAuthor)
+            ? `<span contenteditable="true" spellcheck="false" title="คลิกพิมพ์ชื่อนายอำเภอได้ทันที" onblur="window.__tvReport?.setDistrictChiefName?.(this.innerText)" style="border-bottom:1px dashed #7c3aed;min-width:120px;display:inline-block;">${escH(meta.rightName)}</span>`
+            : escH(meta.rightName);
         const signHtml = `
             <table style="width:100%;border:none;border-collapse:collapse;margin-top:24px;page-break-inside:avoid;">
                 <tr>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้จัดทำแผน</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.officerName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.officerPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${escH(meta.leftName)} )</div>
+                        <div>ตำแหน่ง ${escH(meta.leftPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.leftOrg)}</div>
                     </td>
                     <td style="width:50%;border:none;text-align:center;vertical-align:top;font-size:16pt;line-height:1.45;padding:0 16px;">
                         <div style="font-weight:700;">ผู้บังคับบัญชา/ผู้รับรอง</div>
                         <div style="margin-top:18px;">........................................................</div>
-                        <div>( ${escH(meta.bossName)} )</div>
-                        <div>ตำแหน่ง ${escH(meta.bossPos)}</div>
-                        <div>หน่วยงาน ${escH(meta.officeName)}</div>
+                        <div>( ${planRightNameHtml} )</div>
+                        <div>ตำแหน่ง ${escH(meta.rightPos)}</div>
+                        <div>หน่วยงาน ${escH(meta.rightOrg)}</div>
                     </td>
                 </tr>
             </table>`;
@@ -8889,6 +8929,7 @@ window.ORG = {
         saveCurrentAsChiefPlan: saveCurrentAsChiefPlan,
         applyChiefPlan: applyChiefPlan,
         toggleChiefList: toggleChiefList,
+        setDistrictChiefName: setDistrictChiefName,
         render: renderTvReport,
         renderPlan: renderTvPlan,
         updatePlanField: updatePlanField,
@@ -8916,6 +8957,11 @@ window.ORG = {
         const initAllTvPanels = function () {
             initDohBotOnLoad();
             renderChiefPlanPanel();
+            try {
+                const savedDc = (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim();
+                const dcInp = document.getElementById('in-district-chief-name');
+                if (dcInp && !dcInp.value && savedDc) dcInp.value = savedDc;
+            } catch (e) { /* ignore */ }
         };
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initAllTvPanels);
@@ -10924,6 +10970,9 @@ const ORG = window.ORG || {};
         const allowTotalEl = document.getElementById('in-allowance-total');
         const rateTextEl = document.getElementById('in-rate-text');
 
+        const posVal = (document.getElementById('in-position')?.value || '').trim();
+        const isChiefAuthor = posVal.indexOf('เกษตรอำเภอ') !== -1;
+
         if (isTvOnly) {
             if (syncClaimEl) syncClaimEl.checked = false;
             if (rateClaimEl) {
@@ -10935,6 +10984,7 @@ const ORG = window.ORG || {};
             if (rateTextEl && typeof toThaiBahtText === 'function') rateTextEl.value = toThaiBahtText(0);
             if (banner) {
                 banner.classList.remove('hidden');
+                banner.className = 'mb-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 text-xs text-amber-950 leading-relaxed';
                 banner.innerHTML =
                     '<div class="font-bold text-amber-900 mb-1">ℹ️ โหมดลงแผนและรายงานผล T&amp;V อย่างเดียว</div>' +
                     '<div class="text-[11px] mb-2"><b>' + escHtml(name) + '</b> (' + escHtml(personPositions[name] || 'เจ้าพนักงานธุรการ') + ') ไม่มีสิทธิเบิกเบี้ยเลี้ยง — ระบบตั้งค่าเบี้ยเลี้ยงเป็น <b>0 บาท</b> ให้อัตโนมัติ สามารถสร้างแผน, ส่งแผนเข้าเว็บ T&amp;V และพิมพ์รายงานผล T&amp;V ได้ตามปกติ</div>' +
@@ -10945,6 +10995,24 @@ const ORG = window.ORG || {};
                     '</div>';
             }
             if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+        } else if (isChiefAuthor) {
+            if (rateClaimEl && rateClaimEl.dataset.tvOnlyZero === '1') {
+                rateClaimEl.dataset.tvOnlyZero = '0';
+                rateClaimEl.dataset.manual = '0';
+                if (syncClaimEl) syncClaimEl.checked = true;
+                if (typeof recalcAllExpenses === 'function') recalcAllExpenses(false);
+            }
+            if (banner) {
+                const curDc = (document.getElementById('in-district-chief-name')?.value || '').trim() ||
+                    (function () { try { return localStorage.getItem('sida_district_chief_name_v1') || ''; } catch (e) { return ''; } })();
+                banner.classList.remove('hidden');
+                banner.className = 'mb-3 p-2.5 rounded-lg border border-violet-300 bg-violet-50 text-xs text-violet-950 leading-relaxed';
+                banner.innerHTML =
+                    '<div class="font-bold text-violet-900 mb-1">👔 โหมดเกษตรอำเภอจัดทำแผน T&amp;V</div>' +
+                    '<div class="text-[11px] mb-1.5">• ลายเซ็นท้ายแผน/รายงาน: <b>ซ้าย = เกษตรอำเภอ</b> · <b>ขวา = นายอำเภอ' + escHtml((window.SIDA_ORG_CONFIG && window.SIDA_ORG_CONFIG.amphoe) || 'สีดา') + '</b><br>• ตอนส่งแผนเข้าเว็บ T&amp;V ระบบจะเลือกผู้อนุมัติเป็น <b>ตัวเอง</b> อัตโนมัติ</div>' +
+                    '<label class="block text-[11px] font-semibold text-violet-900 mb-0.5">ชื่อ-สกุล นายอำเภอ (พิมพ์เพิ่มเอง):</label>' +
+                    '<input type="text" value="' + escAttr(curDc) + '" placeholder="เช่น นายสมชาย ใจดี" oninput="window.__tvReport?.setDistrictChiefName?.(this.value)" class="w-full border border-violet-300 rounded px-2 py-1 text-xs bg-white outline-none focus:border-violet-600">';
+            }
         } else {
             if (banner) {
                 banner.classList.add('hidden');

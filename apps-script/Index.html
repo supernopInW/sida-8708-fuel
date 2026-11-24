@@ -3537,7 +3537,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="block text-xs text-gray-600 mb-1">ตำแหน่ง</label>
-                        <select id="in-position" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-blue-500">
+                        <select id="in-position" onchange="if(typeof applyPersonTvOnlyMode==='function') applyPersonTvOnlyMode(document.getElementById('in-name')?.value); if(typeof updatePreview==='function') updatePreview();" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-blue-500">
                             <option value="นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" selected>นักวิชาการส่งเสริมการเกษตรปฏิบัติการ</option>
                             <option value="นักวิชาการส่งเสริมการเกษตรชำนาญการ">นักวิชาการส่งเสริมการเกษตรชำนาญการ</option>
                             <option value="นักวิชาการส่งเสริมการเกษตรชำนาญการพิเศษ">นักวิชาการส่งเสริมการเกษตรชำนาญการพิเศษ</option>
@@ -3824,8 +3824,9 @@
                 
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200" data-fw-section="boss">
                     <div class="form-section-title !text-green-600 !border-green-500">✅ เกษตรอำเภอ / นายอำเภอ</div>
-                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อ-สกุล</label><input type="text" id="in-boss-name" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
+                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อ-สกุล (เกษตรอำเภอ)</label><input type="text" id="in-boss-name" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
                     <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ตำแหน่ง</label><input type="text" id="in-boss-pos" value="" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
+                    <div class="mb-3"><label class="block text-xs text-gray-600 mb-1">ชื่อนายอำเภอ <span class="text-[10px] text-slate-400">(ใช้ลงนามด้านขวาเมื่อเกษตรอำเภอเป็นผู้ทำแผน T&amp;V)</span></label><input type="text" id="in-district-chief-name" value="" placeholder="พิมพ์ชื่อ-สกุล นายอำเภอ (เพิ่มเอง)" oninput="window.__tvReport?.setDistrictChiefName?.(this.value)" class="w-full border rounded px-2 py-1 text-sm outline-none focus:border-green-600"></div>
                     <div><label class="block text-xs text-gray-600 mb-1">วันที่</label><input type="text" id="in-boss-date" class="w-full border rounded px-2 py-1 text-sm outline-none"></div>
                 </div>
 
