@@ -5397,6 +5397,9 @@ const ORG = window.ORG || {};
             document.querySelectorAll('.dyn-cover-from-year, .dyn-cover-to-year').forEach(el => el.textContent = '....');
         }
 
+        if (window.__tvReport && typeof window.__tvReport.refreshPlanLinkBanner === 'function') {
+            window.__tvReport.refreshPlanLinkBanner();
+        }
         let range = '';
         if (fullDates.length === 1) range = fullDates[0];
         else if (fullDates.length > 1) range = fullDates[0] + ' ถึง ' + fullDates[fullDates.length - 1];
