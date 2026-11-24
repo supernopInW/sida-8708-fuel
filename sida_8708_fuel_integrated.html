@@ -4367,6 +4367,15 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                         </div>
                         <p class="text-[10px] text-amber-800 flex-1 min-w-[12rem] leading-snug m-0">ตั้งครั้งเดียว · <b>ระยะทางที่ได้ระบบปัดลงเป็นจำนวนเต็ม กม. เสมอ</b> (เช่น 42.66 → 42 กม.) · ยอดพาหนะ = กม.(ปัดลง) × อัตรานี้</p>
                     </div>
+                    <div id="tv-plan-link-banner" class="mb-2.5 p-2.5 rounded-lg border border-sky-300 bg-sky-50/90 text-[11px] text-sky-950 flex flex-wrap items-center justify-between gap-2 no-print">
+                        <div id="tv-plan-link-text" class="leading-snug">📅 <b>แผน T&amp;V:</b> ยังไม่ได้สร้าง/แนบแผน — กรุณาสร้างแผนก่อนหรือแนบไฟล์แผน (.docx) เพื่อให้การเบิกจ่ายสัมพันธ์กับแผน</div>
+                        <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="switchDocFilter('tvplan'); window.__tvReport?.openBuilderModal();" class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">✨ สร้างแผน</button>
+                            <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="px-2 py-1 rounded bg-teal-700 hover:bg-teal-800 text-white font-semibold">📎 แนบไฟล์แผน</button>
+                            <button type="button" onclick="window.__tvReport?.sendPlanToTvWeb()" class="px-2 py-1 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold" title="ส่งแผนไปลงในระบบ T&amp;V กรมฯ (tandv.doae.go.th)">🚀 ลงระบบ T&amp;V</button>
+                            <button type="button" id="btn-sync-claim-to-plan" onclick="window.__tvReport?.syncPlanToClaim8708()" class="hidden px-2 py-1 rounded bg-sky-700 hover:bg-sky-800 text-white font-semibold">🔄 ปรับตัวเบิกให้ตรงแผน</button>
+                        </div>
+                    </div>
                     <div id="doh-progress-banner" class="mb-2.5 p-2.5 rounded-lg border border-amber-300 bg-amber-50/90 text-[11px] text-amber-950 no-print">
                         <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                             <span class="font-bold">🧭 ลิงก์ระยะทางจากเว็บ DOH TO TRAVEL เท่านั้น</span>
@@ -7142,6 +7151,7 @@ window.ORG = {
             if (bar) bar.classList.remove('hidden');
         }
         refreshBotUI();
+        refreshPlanLinkBanner();
         checkExtension(false);
         setTimeout(function () { if (!_botState.connected) checkExtension(false); }, 800);
         setTimeout(function () { if (!_botState.connected) checkExtension(false); }, 2200);
@@ -7565,8 +7575,61 @@ window.ORG = {
         return `<div class="tvr-doc" style="font-family:'TH SarabunIT๙','TH SarabunPSK','TH Sarabun New',sans-serif;color:#000;width:100%;">${pageDivs.join(pageBreakHtml)}</div>`;
     }
 
+    function refreshPlanLinkBanner() {
+        const banner = document.getElementById('tv-plan-link-banner');
+        const textEl = document.getElementById('tv-plan-link-text');
+        const syncBtn = document.getElementById('btn-sync-claim-to-plan');
+        if (!banner || !textEl) return;
+        const plan = tvrLoadPlan();
+        if (!plan || !Array.isArray(plan.items) || !plan.items.length) {
+            banner.className = 'mb-2.5 p-2.5 rounded-lg border border-sky-300 bg-sky-50/90 text-[11px] text-sky-950 flex flex-wrap items-center justify-between gap-2';
+            textEl.innerHTML = '📅 <b>แผน T&amp;V:</b> ยังไม่ได้สร้างหรือแนบไฟล์แผน — กรุณากด <b>✨ สร้างแผน</b> หรือ <b>📎 แนบไฟล์แผน (.docx)</b> ก่อนเพื่อให้การเบิกจ่ายสัมพันธ์กับแผน';
+            if (syncBtn) syncBtn.classList.add('hidden');
+            return;
+        }
+
+        const planFieldKeys = new Set();
+        const planAllKeys = new Set();
+        plan.items.forEach(function (it) {
+            const k = tvrNormDateKey(it.dateDisplay || it.dateRaw);
+            if (!k) return;
+            planAllKeys.add(k);
+            if (it.isFieldTrip) planFieldKeys.add(k);
+        });
+
+        const claimedRows = Array.from(document.querySelectorAll('#travel-days-list .travel-day-row'));
+        const claimedKeys = new Set();
+        const extraDates = [];
+        claimedRows.forEach(function (r) {
+            const dt = (r.querySelector('.day-date')?.value || '').trim();
+            if (!dt) return;
+            const k = tvrNormDateKey(dt);
+            claimedKeys.add(k);
+            if (!planAllKeys.has(k)) extraDates.push(dt);
+        });
+
+        let matchedCount = 0;
+        planFieldKeys.forEach(function (k) { if (claimedKeys.has(k)) matchedCount++; });
+        const totalPlanField = planFieldKeys.size;
+        const planLabel = plan.monthHeader || plan.fileName || 'แผนที่แนบไว้';
+
+        if (extraDates.length === 0 && totalPlanField > 0 && matchedCount === totalPlanField) {
+            banner.className = 'mb-2.5 p-2.5 rounded-lg border border-emerald-300 bg-emerald-50/90 text-[11px] text-emerald-950 flex flex-wrap items-center justify-between gap-2';
+            textEl.innerHTML = '✅ <b>การเบิกจ่ายตรงกับแผน T&amp;V 100%</b> (' + escH(planLabel) + ' · ออกพื้นที่ ' + matchedCount + '/' + totalPlanField + ' วัน)';
+            if (syncBtn) syncBtn.classList.add('hidden');
+        } else {
+            banner.className = 'mb-2.5 p-2.5 rounded-lg border border-amber-300 bg-amber-50/90 text-[11px] text-amber-950 flex flex-wrap items-center justify-between gap-2';
+            const warnParts = [];
+            if (matchedCount < totalPlanField) warnParts.push('เบิกแล้ว ' + matchedCount + '/' + totalPlanField + ' วันตามแผน');
+            if (extraDates.length) warnParts.push('มีวันที่ไม่อยู่ในแผน: ' + escH(extraDates.slice(0, 4).join(', ')) + (extraDates.length > 4 ? ' ...' : ''));
+            textEl.innerHTML = '⚠️ <b>แผน T&amp;V (' + escH(planLabel) + '):</b> ' + warnParts.join(' · ');
+            if (syncBtn) syncBtn.classList.remove('hidden');
+        }
+    }
+
     function renderTvReport(forceSync) {
         const paper = document.getElementById('tv-report-paper');
+        refreshPlanLinkBanner();
         if (!paper) return;
         tvrBuildRows(!!forceSync);
         paper.innerHTML = tvrBuildDocumentHtml(false);
@@ -8545,6 +8608,7 @@ window.ORG = {
     }
 
     global.__tvReport = {
+        refreshPlanLinkBanner: refreshPlanLinkBanner,
         render: renderTvReport,
         renderPlan: renderTvPlan,
         updatePlanField: updatePlanField,
@@ -13977,6 +14041,9 @@ const ORG = window.ORG || {};
             document.querySelectorAll('.dyn-cover-from-year, .dyn-cover-to-year').forEach(el => el.textContent = '....');
         }
 
+        if (window.__tvReport && typeof window.__tvReport.refreshPlanLinkBanner === 'function') {
+            window.__tvReport.refreshPlanLinkBanner();
+        }
         let range = '';
         if (fullDates.length === 1) range = fullDates[0];
         else if (fullDates.length > 1) range = fullDates[0] + ' ถึง ' + fullDates[fullDates.length - 1];
