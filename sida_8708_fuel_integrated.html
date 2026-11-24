@@ -7388,7 +7388,14 @@ window.ORG = {
 
     function tvrFormatLocationHtml(loc) {
         const s = escH(String(loc || '').trim());
-        return s.replace(/\s+(?=ตำบล|ต\.)/g, '<br>');
+        return s.replace(/\r?\n/g, '<br>').replace(/(?:<br>|\s)+(?=ตำบล|ต\.)/g, '<br>');
+    }
+
+    function tvrFormatDetailHtml(detail) {
+        const s = escH(String(detail || '').trim());
+        return s
+            .replace(/\r?\n/g, '<br>')
+            .replace(/(ประชุม\s*สนง\.?\s*กษอ\.?)\s*(ประจำเดือน|ประจำสัปดาห์)/g, '$1<br>$2');
     }
 
     function tvrBuildDocumentHtml(forExport) {
@@ -7818,7 +7825,7 @@ window.ORG = {
                 <td style="${tdStyle}text-align:center;">${r.seq}${delBtn}</td>
                 <td style="${tdStyle}"${editAttr('category')}>${escH(r.category)}</td>
                 <td style="${tdStyle}"${editAttr('activity')}>${escH(r.activity)}</td>
-                <td style="${tdStyle}"${editAttr('detail')}>${escH(r.detail)}</td>
+                <td style="${tdStyle}"${editAttr('detail')}>${tvrFormatDetailHtml(r.detail)}</td>
                 <td style="${tdStyle}text-align:center;white-space:nowrap;"${editAttr('date')}>${dateCellContent}</td>
                 <td style="${tdStyle}"${editAttr('location')}>${locCellContent}</td>
                 <td style="${tdStyle}text-align:right;"${editAttr('targetCount')}>${escH(r.targetCount)}</td>
@@ -7895,7 +7902,9 @@ window.ORG = {
         const plan = tvrEnsurePlanItems();
         const it = plan.items[idx];
         if (!it) return;
-        const cleanVal = String(val || '').replace(/\s+/g, ' ').trim();
+        const cleanVal = (field === 'detail' || field === 'location' || field === 'activity' || field === 'note')
+            ? String(val || '').replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+            : String(val || '').replace(/\s+/g, ' ').trim();
         const oldDateKey = tvrNormDateKey(it.dateDisplay || it.dateRaw);
 
         if (field === 'date') {
