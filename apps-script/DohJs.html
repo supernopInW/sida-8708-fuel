@@ -2699,7 +2699,7 @@
         if (typeof global.showToast === 'function') global.showToast('📄 กำลังสร้างไฟล์ PDF โดยตรง (ไม่ต้องรอเครื่องปริ้นท์)...');
 
         const stage = document.createElement('div');
-        stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:' + stagePx + 'px;background:#ffffff;color:#000000;padding:0;margin:0;box-sizing:border-box;font-family:"TH SarabunIT๙","TH SarabunPSK","TH Sarabun New",sans-serif;z-index:-1;';
+        stage.style.cssText = 'position:absolute;left:-10000px;top:0;width:' + stagePx + 'px;background:#ffffff;color:#000000;padding:0;margin:0;box-sizing:border-box;font-family:"TH SarabunIT๙","TH SarabunPSK","TH Sarabun New",sans-serif;pointer-events:none;opacity:1;';
         stage.innerHTML = bodyHtml;
         document.body.appendChild(stage);
 
