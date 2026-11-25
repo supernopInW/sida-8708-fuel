@@ -408,13 +408,29 @@
         const fullAddress = isSida
             ? SIDA_VILLAGES_MAP.office.fullAddress
             : ('กรมส่งเสริมการเกษตร ' + officeName + ' ต.' + officeTambon + ' อ.' + amphoe + ' จ.' + province);
+        const sidaTambons = [
+            { name: 'โนนประดู่', mooCount: 10 },
+            { name: 'โพนทอง', mooCount: 10 },
+            { name: 'สามเมือง', mooCount: 10 },
+            { name: 'สีดา', mooCount: 11 },
+            { name: 'หนองตาดใหญ่', mooCount: 9 }
+        ];
+        let tambons = isSida ? sidaTambons : (Array.isArray(org.tambons) && org.tambons.length ? org.tambons : []);
+        if (!tambons.length && global.TH_AREA && global.TH_AREA.data && global.TH_AREA.data[province] && global.TH_AREA.data[province][amphoe]) {
+            tambons = global.TH_AREA.data[province][amphoe].map(function (n) { return { name: String(n), mooCount: 10 }; });
+        }
+        tambons = tambons.map(function (t) {
+            if (typeof t === 'string') return { name: t, mooCount: 10 };
+            return { name: String(t && t.name || '').trim(), mooCount: parseInt(t && t.mooCount, 10) || 10 };
+        }).filter(function (t) { return !!t.name; });
         return {
             amphoe: amphoe,
             province: province,
             officeTambon: officeTambon,
             officeName: officeName,
             isSida: isSida,
-            fullAddress: fullAddress
+            fullAddress: fullAddress,
+            tambons: tambons
         };
     }
 
