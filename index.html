@@ -9130,8 +9130,10 @@ window.ORG = {
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
             }
             if (/smart farmer|ysf|young smart/.test(txt)) {
-                const moos = pickFromPool([3, 5], 1, seed, randomMode);
-                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '2' };
+                const pickCnt = Math.random() > 0.35 ? 2 : 1; // สุ่ม 1-2 บ้านในหมู่ 3, 5 (ไปพร้อมกันได้)
+                const moos = pickFromPool([3, 5], pickCnt, seed, true);
+                const cnt = moos.length === 2 ? '3' : (moos[0] === 3 ? '2' : '1');
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: cnt };
             }
             if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt)) {
                 const moos = pickFromPool([1, 2, 3, 4, 5, 6, 7, 8, 9], 1, seed, randomMode);
