@@ -3926,6 +3926,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div id="tv-chief-plan-header" class="font-bold text-violet-950">📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span></div>
                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <select id="tv-chief-preset-month" onchange="window.__tvReport?.loadChiefPresetMonth?.(this.value)" class="px-2 py-0.5 rounded border border-violet-400 bg-white text-violet-950 font-semibold text-[10px] outline-none" title="เลือกเดือนแผนเกษตรอำเภอ (นางอรอนงค์ สูญกลาง)">
+                            <option value="2569-12">📅 ธ.ค. 69 (20 วัน)</option>
+                            <option value="2569-11">📅 พ.ย. 69 (21 วัน)</option>
+                            <option value="2569-10">📅 ต.ค. 69 (20 วัน)</option>
+                            <option value="__CUSTOM__">📌 แผนที่บันทึกเอง</option>
+                        </select>
                         <button type="button" onclick="window.__tvReport?.saveCurrentAsChiefPlan?.()" class="px-2 py-0.5 rounded border border-violet-400 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]" title="บันทึกแผน T&amp;V ปัจจุบันเป็นแผนของเกษตรอำเภอ">💾 บันทึกเป็นแผนเกษตรอำเภอ</button>
                         <button type="button" id="btn-toggle-chief-list" onclick="window.__tvReport?.toggleChiefList?.()" class="hidden px-2 py-0.5 rounded border border-violet-300 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]">ซ่อน/แสดงรายการ</button>
                     </div>
@@ -5061,6 +5067,9 @@ window.ORG = {
   people: [
     { name: "นายนพฤทธิ์ น้อยเล็น", position: "นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" },
     { name: "นางอรอนงค์ สูญกลาง", position: "เกษตรอำเภอ" },
+    { name: "นางสาวศุภลักษณ์ จันทร์วิทัน", position: "นักวิชาการส่งเสริมการเกษตรชำนาญการ" },
+    { name: "นางสาวเบญญาภา ทวีทรัพย์", position: "นักวิชาการส่งเสริมการเกษตรชำนาญการ" },
+    { name: "นายจักกฤษณ์ เอี่ยมเอม", position: "นักวิชาการส่งเสริมการเกษตรปฏิบัติการ" },
     { name: "นางสาวหนึ่งนภา ปัจจัยโย", position: "เจ้าพนักงานธุรการ", tvOnly: true }
   ],
 
@@ -7512,7 +7521,12 @@ window.ORG = {
         const inp = document.getElementById('in-district-chief-name');
         const v = (inp && inp.value || '').trim();
         if (v) return v;
-        try { return (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim(); } catch (e) { return ''; }
+        try {
+            const saved = (localStorage.getItem(DISTRICT_CHIEF_STORAGE_KEY) || '').trim();
+            if (saved) return saved;
+        } catch (e) { /* ignore */ }
+        const cfg = getActiveOrgConfig();
+        return (cfg && cfg.isSida) ? 'นางกนิฏฐี สุนทรเกศ' : '';
     }
 
     function setDistrictChiefName(val) {
@@ -8278,14 +8292,140 @@ window.ORG = {
     }
 
     const TVR_CHIEF_STORAGE_KEY = 'sida_tv_chief_plan_v1';
+    const SIDA_ALL_TAMBONS_LOC = 'ตำบลสีดา ตำบลโพนทอง ตำบลสามเมือง ตำบลโนนประดู่ ตำบลหนองตาดใหญ่';
+
+    function buildChiefPresetPlan(yearBE, monthNum, monthAbbr, monthFull, rowsSpec) {
+        const yearCE = yearBE - 543;
+        const y2 = String(yearBE).slice(-2);
+        return {
+            chiefName: 'นางอรอนงค์ สูญกลาง',
+            monthHeader: 'ประจำเดือน ' + monthFull + ' พ.ศ. ' + yearBE,
+            isPreset: true,
+            presetKey: yearBE + '-' + String(monthNum).padStart(2, '0'),
+            items: rowsSpec.map(function (r, idx) {
+                const d = r[0];
+                const cat = r[1] === 'T' ? 'การถ่ายทอดความรู้ (TRAINING)'
+                    : (r[1] === 'D' ? 'การจัดการข้อมูล (DATA MANAGEMENT)' : 'การเยี่ยมเยียน (VISITING)');
+                const act = r[2];
+                const det = r[3] || act;
+                const loc = r[4] || SIDA_ALL_TAMBONS_LOC;
+                const target = String(r[5] || '10');
+                const isField = (r[1] !== 'T');
+                const dDisp = d + ' ' + monthAbbr + ' ' + y2;
+                const dIso = String(yearCE).padStart(4, '0') + '-' + String(monthNum).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                return {
+                    seqNum: idx + 1,
+                    category: cat,
+                    activity: act,
+                    detail: det,
+                    dateDisplay: dDisp,
+                    dateRaw: dDisp,
+                    dateIso: dIso,
+                    dateParsed: { day: d, monthAbbr: monthAbbr, monthFull: monthFull, yearBE: yearBE },
+                    locationRaw: loc,
+                    targetCount: target,
+                    note: '',
+                    isFieldTrip: isField
+                };
+            })
+        };
+    }
+
+    const SIDA_CHIEF_PRESETS = {
+        '2569-12': buildChiefPresetPlan(2569, 12, 'ธ.ค.', 'ธันวาคม', [
+            [1, 'V', 'พัฒนาคุณภาพสินค้าเกษตร', 'โครงการยกระดับคุณภาพมาตรฐานสินค้าเกษตร', '', '10'],
+            [2, 'V', 'Smart Farmer / Young Smart Farmer', 'โครงการพัฒนา Smart Farmer / Young Smart Farmer', '', '10'],
+            [3, 'V', 'วิสาหกิจชุมชน', 'โครงการส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', '', '15'],
+            [4, 'V', 'ศพก.', 'โครงการศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', '', '10'],
+            [8, 'V', 'เกษตรแปลงใหญ่', 'โครงการระบบส่งเสริมเกษตรแบบแปลงใหญ่เพื่อปรับเพิ่มผลิตภาพการผลิต', '', '30'],
+            [9, 'V', 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่', '', '2'],
+            [11, 'V', 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', 'โครงการศูนย์จัดการศัตรูพืชชุมชน', '', '10'],
+            [14, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [15, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [16, 'V', 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', 'โครงการขับเคลื่อนนโยบายพัฒนาเกษตรกรและองค์กรเกษตรกร (3ก)', '', '10'],
+            [17, 'V', 'Zoning by Agri-Map', 'โครงการปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', '', '10'],
+            [18, 'V', 'เกษตรอินทรีย์', 'โครงการรับรองมาตรฐานเกษตรอินทรีย์', '', '1'],
+            [21, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [22, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [23, 'V', 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', 'โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', '', '10'],
+            [24, 'D', 'ด้านข้อมูลสารสนเทศ', 'โครงการทะเบียนเกษตรกรและบริหารจัดการสารสนเทศการเกษตรด้านพืช', '', '50'],
+            [25, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [28, 'T', 'District Meeting : DM', 'ประชุมประจำเดือนเกษตรอำเภอ', 'สำนักงานเกษตรจังหวัดนครราชสีมา', '50'],
+            [29, 'V', 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', 'โครงการศูนย์จัดการดินปุ๋ยชุมชน', '', '10'],
+            [30, 'D', 'ด้านข้อมูลสารสนเทศ', 'โครงการทะเบียนเกษตรกรและบริหารจัดการสารสนเทศการเกษตรด้านพืช', '', '50']
+        ]),
+        '2569-11': buildChiefPresetPlan(2569, 11, 'พ.ย.', 'พฤศจิกายน', [
+            [2, 'T', 'District Meeting : DM', 'ประชุมสำนักงานเกษตรอำเภอประจำเดือน (DM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [3, 'V', 'Smart Farmer / Young Smart Farmer', 'โครงการพัฒนา Smart Farmer / Young Smart Farmer', '', '10'],
+            [4, 'V', 'วิสาหกิจชุมชน', 'โครงการส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', '', '15'],
+            [5, 'V', 'ศพก.', 'โครงการศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', '', '10'],
+            [6, 'V', 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่', '', '2'],
+            [9, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [10, 'V', 'พัฒนาคุณภาพสินค้าเกษตร', 'โครงการยกระดับคุณภาพมาตรฐานสินค้าเกษตร', '', '10'],
+            [11, 'V', 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', 'โครงการศูนย์จัดการศัตรูพืชชุมชน', '', '10'],
+            [12, 'V', 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', 'โครงการศูนย์จัดการดินปุ๋ยชุมชน', '', '10'],
+            [13, 'V', 'เกษตรอินทรีย์', 'โครงการรับรองมาตรฐานเกษตรอินทรีย์', '', '1'],
+            [16, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [17, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [18, 'V', 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', 'โครงการขับเคลื่อนนโยบายพัฒนาเกษตรกรและองค์กรเกษตรกร (3ก)', '', '10'],
+            [19, 'V', 'Zoning by Agri-Map', 'โครงการปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', '', '10'],
+            [20, 'V', 'เกษตรอินทรีย์', 'โครงการรับรองมาตรฐานเกษตรอินทรีย์', '', '1'],
+            [23, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [24, 'V', 'เกษตรแปลงใหญ่', 'โครงการระบบส่งเสริมเกษตรแบบแปลงใหญ่เพื่อปรับเพิ่มผลิตภาพการผลิต', '', '30'],
+            [25, 'V', 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', 'โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', '', '10'],
+            [26, 'D', 'ด้านข้อมูลสารสนเทศ', 'โครงการทะเบียนเกษตรกรและบริหารจัดการสารสนเทศการเกษตรด้านพืช', '', '50'],
+            [27, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [30, 'T', 'District Meeting : DM', 'ประชุมประจำเดือนเกษตรอำเภอ', 'สำนักงานเกษตรจังหวัดนครราชสีมา', '50']
+        ]),
+        '2569-10': buildChiefPresetPlan(2569, 10, 'ต.ค.', 'ตุลาคม', [
+            [1, 'V', 'Smart Farmer / Young Smart Farmer', 'โครงการพัฒนา Smart Farmer', '', '10'],
+            [2, 'V', 'วิสาหกิจชุมชน', 'โครงการส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', '', '15'],
+            [5, 'T', 'District Meeting : DM', 'ประชุมสำนักงานเกษตรอำเภอประจำเดือน (DM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [6, 'V', 'Smart Farmer / Young Smart Farmer', 'โครงการพัฒนา Young Smart Farmer', '', '10'],
+            [7, 'V', 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่', '', '2'],
+            [8, 'V', 'ศพก.', 'โครงการศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', '', '10'],
+            [9, 'V', 'เกษตรอินทรีย์', 'โครงการรับรองมาตรฐานเกษตรอินทรีย์', '', '1'],
+            [12, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [14, 'V', 'พัฒนาคุณภาพสินค้าเกษตร', 'โครงการยกระดับคุณภาพมาตรฐานสินค้าเกษตร', '', '10'],
+            [15, 'V', 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', 'โครงการศูนย์จัดการศัตรูพืชชุมชน', '', '10'],
+            [16, 'V', 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', 'โครงการศูนย์จัดการดินปุ๋ยชุมชน', '', '10'],
+            [19, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [20, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30'],
+            [21, 'V', 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', 'โครงการขับเคลื่อนนโยบายพัฒนาเกษตรกรและองค์กรเกษตรกร (3ก)', '', '10'],
+            [22, 'V', 'Zoning by Agri-Map', 'โครงการปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', '', '10'],
+            [26, 'T', 'Weekly Meeting : WM', 'ประชุมสำนักงานเกษตรอำเภอประจำสัปดาห์ (WM)', 'สำนักงานเกษตรอำเภอสีดา', '7'],
+            [27, 'V', 'เกษตรแปลงใหญ่', 'โครงการระบบส่งเสริมเกษตรแบบแปลงใหญ่เพื่อปรับเพิ่มผลิตภาพการผลิต', '', '30'],
+            [28, 'V', 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', 'โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', '', '10'],
+            [29, 'D', 'ด้านข้อมูลสารสนเทศ', 'โครงการทะเบียนเกษตรกรและบริหารจัดการสารสนเทศการเกษตรด้านพืช', '', '50'],
+            [30, 'V', 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', 'โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', '', '30']
+        ])
+    };
+
+    function loadChiefPresetMonth(key) {
+        if (key === '__CUSTOM__') {
+            renderChiefPlanPanel();
+            return;
+        }
+        const preset = SIDA_CHIEF_PRESETS[key];
+        if (!preset) return;
+        try { localStorage.setItem(TVR_CHIEF_STORAGE_KEY, JSON.stringify(preset)); } catch (e) { /* ignore */ }
+        renderChiefPlanPanel();
+        if (typeof global.showToast === 'function') global.showToast('📌 โหลดแผนเกษตรอำเภอ ' + preset.monthHeader + ' (' + preset.items.length + ' รายการ) แล้ว');
+    }
 
     function tvrLoadChiefPlan() {
         try {
             const raw = localStorage.getItem(TVR_CHIEF_STORAGE_KEY);
-            if (!raw) return null;
-            const p = JSON.parse(raw);
-            return (p && Array.isArray(p.items) && p.items.length) ? p : null;
-        } catch (e) { return null; }
+            if (raw) {
+                const p = JSON.parse(raw);
+                if (p && Array.isArray(p.items) && p.items.length) return p;
+            }
+        } catch (e) { /* ignore */ }
+        const cfg = getActiveOrgConfig();
+        if (cfg && cfg.isSida && SIDA_CHIEF_PRESETS['2569-12']) {
+            return SIDA_CHIEF_PRESETS['2569-12'];
+        }
+        return null;
     }
 
     function tvrSaveChiefPlanSnapshot(plan, customChiefName) {
@@ -8348,6 +8488,10 @@ window.ORG = {
         populateChiefRandomTambonSelect();
 
         const chief = tvrLoadChiefPlan();
+        const presetSel = document.getElementById('tv-chief-preset-month');
+        if (presetSel && chief) {
+            presetSel.value = (chief.presetKey && SIDA_CHIEF_PRESETS[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
+        }
         if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
             hdr.innerHTML = '📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span>';
             body.classList.add('hidden');
@@ -8400,6 +8544,10 @@ window.ORG = {
 
     function applyChiefPlan(mode) {
         const chief = tvrLoadChiefPlan();
+        const presetSel = document.getElementById('tv-chief-preset-month');
+        if (presetSel && chief) {
+            presetSel.value = (chief.presetKey && SIDA_CHIEF_PRESETS[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
+        }
         if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
             if (typeof global.showToast === 'function') global.showToast('ยังไม่มีแผนของเกษตรอำเภอที่บันทึกไว้ กรุณาให้เกษตรอำเภอสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ" ก่อนครับ');
             return;
@@ -9711,6 +9859,7 @@ window.ORG = {
     global.__tvReport = {
         refreshPlanLinkBanner: refreshPlanLinkBanner,
         renderChiefPlanPanel: renderChiefPlanPanel,
+        loadChiefPresetMonth: loadChiefPresetMonth,
         saveCurrentAsChiefPlan: saveCurrentAsChiefPlan,
         applyChiefPlan: applyChiefPlan,
         toggleChiefList: toggleChiefList,
