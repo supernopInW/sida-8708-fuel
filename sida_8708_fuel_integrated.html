@@ -9087,7 +9087,7 @@ window.ORG = {
             const moos = pickFromPool(pool, pickCnt, seed, true);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tObj.name,
-                targetCount: '30'
+                targetCount: String(moos.length * 30)
             };
         }
 
