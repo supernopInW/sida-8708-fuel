@@ -8398,6 +8398,7 @@ window.ORG = {
         const activePool = poolTambons.length ? poolTambons : allTambons;
 
         let rr = Math.floor(Math.random() * 10);
+        let plantHealthIdx = 0;
         const newItems = chief.items.map(function (src, idx) {
             const copy = Object.assign({}, src, { seqNum: idx + 1 });
             if (mode === 'random_tambon') {
@@ -8409,13 +8410,20 @@ window.ORG = {
                     copy.isFieldTrip = false;
                 } else {
                     const tam = activePool[(rr++) % activePool.length];
-                    const maxMoo = Math.max(1, parseInt(tam.mooCount, 10) || 10);
-                    const m1 = 1 + Math.floor(Math.random() * maxMoo);
-                    let m2 = 1 + Math.floor(Math.random() * maxMoo);
-                    if (maxMoo > 1 && m2 === m1) m2 = (m1 % maxMoo) + 1;
-                    const moos = (maxMoo > 1 && Math.random() > 0.35) ? [m1, m2].sort(function (a, b) { return a - b; }) : [m1];
-                    copy.locationRaw = 'หมู่ ' + moos.join(', ') + ' ตำบล' + tam.name;
-                    copy.isFieldTrip = true;
+                    const locked = resolveSidaLockedPlace(copy.activity, copy.detail, tam.name, /สุขภาพพืช/i.test(rawAct) ? (plantHealthIdx++) : rr, true);
+                    if (locked) {
+                        copy.locationRaw = locked.locationRaw;
+                        if (locked.targetCount) copy.targetCount = locked.targetCount;
+                        copy.isFieldTrip = true;
+                    } else {
+                        const maxMoo = Math.max(1, parseInt(tam.mooCount, 10) || 10);
+                        const m1 = 1 + Math.floor(Math.random() * maxMoo);
+                        let m2 = 1 + Math.floor(Math.random() * maxMoo);
+                        if (maxMoo > 1 && m2 === m1) m2 = (m1 % maxMoo) + 1;
+                        const moos = (maxMoo > 1 && Math.random() > 0.35) ? [m1, m2].sort(function (a, b) { return a - b; }) : [m1];
+                        copy.locationRaw = 'หมู่ ' + moos.join(', ') + ' ตำบล' + tam.name;
+                        copy.isFieldTrip = true;
+                    }
                 }
             }
             const resolved = resolveTvLocationRaw(copy.locationRaw || '');
@@ -8991,21 +8999,100 @@ window.ORG = {
 
     /* ==================== Built-in T&V Monthly Plan Generator ==================== */
     const TVB_STANDARD_ACTIVITIES = [
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Smart Farmer / Young Smart Farmer', detail: 'ติดตามเยี่ยมเยียนและพัฒนาศักยภาพ Smart Farmer / YSF', target: '10', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'วิสาหกิจชุมชน', detail: 'ส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', target: '15', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Smart Farmer / Young Smart Farmer', detail: 'ติดตามเยี่ยมเยียนและพัฒนาศักยภาพ Smart Farmer / YSF', target: '2', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'วิสาหกิจชุมชน', detail: 'ส่งเสริมและพัฒนาผู้ประกอบการวิสาหกิจชุมชน', target: '30', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'ศพก.', detail: 'ติดตามเยี่ยมเยียนศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)', target: '10', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'พัฒนาคุณภาพสินค้าเกษตร', detail: 'ส่งเสริมและยกระดับคุณภาพมาตรฐานสินค้าเกษตร (GAP)', target: '10', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', detail: 'ติดตามเฝ้าระวังศัตรูพืชและสนับสนุนงาน ศจช.', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'พัฒนาคุณภาพสินค้าเกษตร', detail: 'ส่งเสริมและยกระดับคุณภาพมาตรฐานสินค้าเกษตร (GAP)', target: '5', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', detail: 'ติดตามเฝ้าระวังศัตรูพืชและสนับสนุนงาน ศจช.', target: '30', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', detail: 'ให้คำแนะนำการจัดการดินปุ๋ยและการใช้ปุ๋ยตามค่าวิเคราะห์ดิน (ศดปช.)', target: '10', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรอินทรีย์', detail: 'ตรวจติดตามและส่งเสริมการผลิตเกษตรอินทรีย์', target: '5', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', detail: 'รณรงค์หยุดเผาในพื้นที่การเกษตรและจัดการเศษวัสดุการเกษตร', target: '30', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', detail: 'เยี่ยมเยียนและพัฒนาความเข้มแข็งองค์กรเกษตรกร', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', detail: 'เยี่ยมเยียนและพัฒนาความเข้มแข็งองค์กรเกษตรกร', target: '30', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : กลุ่มเมล็ดพันธุ์ข้าว', detail: 'ติดตามและพัฒนาการผลิตเมล็ดพันธุ์ข้าวคุณภาพดี (กลุ่มเมล็ดพันธุ์ข้าว)', target: '15', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Zoning by Agri-Map', detail: 'ติดตามปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', target: '10', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรแปลงใหญ่', detail: 'ติดตามเยี่ยมเยียนและบริหารจัดการแปลงใหญ่เพื่อเพิ่มผลิตภาพการผลิต', target: '30', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', detail: 'จัดทำแผนพัฒนาและขับเคลื่อนการเกษตรระดับหมู่บ้าน', target: '10', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', detail: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชในพื้นที่', target: '10', checked: false },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', detail: 'จัดทำแผนพัฒนาและขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', target: '10', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', detail: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่ (ก่อนวันที่ 20)', target: '1', checked: true },
         { category: 'การจัดการข้อมูล (DATA MANAGEMENT)', activity: 'ด้านข้อมูลสารสนเทศ', detail: 'ขึ้นทะเบียน ปรับปรุงทะเบียนเกษตรกร และรายงานข้อมูลสารสนเทศด้านพืช', target: '50', checked: true }
     ];
+
+    /**
+     * เงื่อนไขล็อกพื้นที่จริงของ อ.สีดา (ต.หนองตาดใหญ่ + ศจช./ศดปช./สุขภาพพืช)
+     * รองรับการขยายเพิ่มตำบลอื่นในอนาคตได้ง่าย
+     */
+    function pickFromPool(pool, count, seed, randomMode) {
+        if (!pool || !pool.length) return [];
+        const arr = pool.slice();
+        if (randomMode) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+            }
+            return arr.slice(0, Math.min(count, arr.length)).sort(function (a, b) { return a - b; });
+        }
+        const out = [];
+        const s = Math.abs(seed || 0);
+        for (let k = 0; k < Math.min(count, arr.length); k++) {
+            const v = arr[(s + k) % arr.length];
+            if (out.indexOf(v) === -1) out.push(v);
+        }
+        return out.sort(function (a, b) { return a - b; });
+    }
+
+    function resolveSidaLockedPlace(actText, detText, tambonName, seed, randomMode) {
+        const cfg = getActiveOrgConfig();
+        if (!cfg || !cfg.isSida) return null;
+        const txt = (String(actText || '') + ' ' + String(detText || '')).toLowerCase();
+
+        // 1) เงื่อนไขระดับอำเภอสีดา (ข้ามตำบล — ล็อกจุดจริง)
+        if (/สุขภาพพืช/.test(txt)) {
+            const sites = [
+                { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' },
+                { locationRaw: 'หมู่ 4 ตำบลสามเมือง', targetCount: '1' }
+            ];
+            return sites[Math.abs(seed || 0) % sites.length];
+        }
+        if (/ศดปช|ดินปุ๋ย/.test(txt)) {
+            return { locationRaw: 'หมู่ 4 ตำบลสามเมือง', targetCount: '10' };
+        }
+        if (/ศจช|ศูนย์จัดการศัตรูพืช/.test(txt)) {
+            const sites = ['หมู่ 4 ตำบลสามเมือง', 'หมู่ 7 ตำบลโพนทอง'];
+            const idx = randomMode ? Math.floor(Math.random() * sites.length) : (Math.abs(seed || 0) % sites.length);
+            return { locationRaw: sites[idx], targetCount: '30' };
+        }
+
+        // 2) เงื่อนไขล็อกเฉพาะตำบลหนองตาดใหญ่
+        if (String(tambonName || '').trim() === 'หนองตาดใหญ่') {
+            if (/ศพก/.test(txt)) {
+                const moos = pickFromPool([2, 4], 1, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
+            }
+            if (/แปลงใหญ่/.test(txt)) {
+                const moos = pickFromPool([5, 6], 1, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
+            }
+            if (/smart farmer|ysf|young smart/.test(txt)) {
+                const moos = pickFromPool([3, 5], 1, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '2' };
+            }
+            if (/เมล็ดพันธุ์ข้าว|ศูนย์ข้าว/.test(txt)) {
+                return { locationRaw: 'หมู่ 5 ตำบลหนองตาดใหญ่', targetCount: '15' };
+            }
+            if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt)) {
+                const moos = pickFromPool([1, 2, 3, 4, 5, 6, 7, 8, 9], 1, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: String(moos.length * 5) };
+            }
+            if (/วิสาหกิจ|แม่บ้าน|กลุ่มเกษตรกร/.test(txt)) {
+                const moos = pickFromPool([2, 3, 4, 5, 8, 9], 2, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
+            }
+            if (/มูลค่าสูง/.test(txt)) {
+                const moos = pickFromPool([2, 3, 8, 9], 2, seed, randomMode);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
+            }
+        }
+        return null;
+    }
 
     const TVB_FIXED_THAI_HOLIDAYS = {
         1: [1],
@@ -9227,15 +9314,63 @@ window.ORG = {
         });
 
         // 2. แยกกิจกรรม VISITING กับ DATA MANAGEMENT แล้วกระจายตามวันออกพื้นที่และหมู่บ้าน
-        const visitingActs = selActs.filter(function (a) { return a.category.indexOf('DATA') === -1; });
+        const plantHealthAct = selActs.find(function (a) { return /สุขภาพพืช/.test(a.activity); }) || null;
+        const visitingActs = selActs.filter(function (a) { return a.category.indexOf('DATA') === -1 && a !== plantHealthAct; });
         const dataActs = selActs.filter(function (a) { return a.category.indexOf('DATA') !== -1; });
         const orderedFieldActs = visitingActs.length ? visitingActs : selActs;
         let mooCursor = 0;
 
+        // ล็อกวันลงพื้นที่ "สุขภาพพืช" (อ.สีดา): ต้องลงก่อนวันที่ 20 ของทุกเดือน แยก 2 วัน วันละหมู่ (ม.7 โพนทอง 1 คน, ม.4 สามเมือง 1 คน)
+        const plantHealthDayMap = {};
+        if (cfg.isSida && plantHealthAct) {
+            const before20Idx = [];
+            fieldDays.forEach(function (fd, idx) { if (fd.day < 20) before20Idx.push(idx); });
+            if (before20Idx.length >= 2) {
+                const i1 = before20Idx[Math.min(1, before20Idx.length - 2)];
+                const i2 = before20Idx[Math.min(Math.max(i1 + 2, Math.floor(before20Idx.length / 2)), before20Idx.length - 1)];
+                plantHealthDayMap[i1] = { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' };
+                plantHealthDayMap[i2] = { locationRaw: 'หมู่ 4 ตำบลสามเมือง', targetCount: '1' };
+            } else if (before20Idx.length === 1) {
+                plantHealthDayMap[before20Idx[0]] = { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' };
+            }
+        }
+
+        let normalActIdx = 0;
         const fieldEntries = fieldDays.map(function (fd, idx) {
+            if (plantHealthDayMap[idx] && plantHealthAct) {
+                return {
+                    category: plantHealthAct.category,
+                    activity: plantHealthAct.activity,
+                    detail: plantHealthAct.detail,
+                    dateDisplay: fd.dateDisplay,
+                    dateRaw: fd.dateDisplay,
+                    dateIso: fd.dateIso,
+                    dateParsed: fd.dateParsed,
+                    locationRaw: plantHealthDayMap[idx].locationRaw,
+                    targetCount: plantHealthDayMap[idx].targetCount,
+                    note: '',
+                    isFieldTrip: true
+                };
+            }
             const isLastAndHasData = (dataActs.length > 0 && idx === fieldDays.length - 1);
-            const actObj = isLastAndHasData ? dataActs[0] : orderedFieldActs[idx % orderedFieldActs.length];
+            const actObj = isLastAndHasData ? dataActs[0] : orderedFieldActs[(normalActIdx++) % orderedFieldActs.length];
             const tam = selTambons[idx % selTambons.length];
+            const locked = resolveSidaLockedPlace(actObj.activity, actObj.detail, tam.name, idx, false);
+            if (locked) {
+                return {
+                    category: actObj.category,
+                    activity: actObj.activity,
+                    detail: actObj.detail,
+                    dateDisplay: fd.dateDisplay,
+                    dateRaw: fd.dateDisplay,
+                    dateIso: fd.dateIso,
+                    dateParsed: fd.dateParsed,
+                    locationRaw: locked.locationRaw,
+                    targetCount: locked.targetCount || actObj.target,
+                    note: '',
+                    isFieldTrip: true
+                };
+            }
             const countThisDay = Math.min(tam.mooCount, Math.max(2, (mooPerDay === 3 ? (idx % 2 === 0 ? 2 : 3) : mooPerDay)));
             const chosenMoos = [];
             for (let k = 0; k < countThisDay; k++) {
