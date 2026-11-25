@@ -3944,7 +3944,7 @@
             };
         }
 
-        // 1.6) เกษตรที่เป็นมิตรกับสิ่งแวดล้อม: ทุกหมู่บ้านในอำเภอสีดา (ทั้ง 5 ตำบล)
+        // 1.6) เกษตรที่เป็นมิตรกับสิ่งแวดล้อม: ทุกหมู่บ้านในอำเภอสีดา (สุ่ม 3-4 หมู่บ้านในตำบลที่สุ่มได้)
         if (/มิตรกับสิ่งแวดล้อม|หยุดเผา/.test(txt)) {
             const allTams = (cfg.tambons && cfg.tambons.length) ? cfg.tambons : [{ name: tambonName || 'สีดา', mooCount: 10 }];
             const tIdx = randomMode ? Math.floor(Math.random() * allTams.length) : (Math.abs(seed || 0) % allTams.length);
@@ -3952,20 +3952,22 @@
             const maxMoo = Math.max(1, parseInt(tObj.mooCount, 10) || 10);
             const pool = [];
             for (let m = 1; m <= maxMoo; m++) pool.push(m);
-            const moos = pickFromPool(pool, 2, seed, true);
+            const pickCnt = Math.min(maxMoo, 3 + Math.floor(Math.random() * 2)); // 3-4 บ้าน
+            const moos = pickFromPool(pool, pickCnt, seed, true);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tObj.name,
                 targetCount: '30'
             };
         }
 
-        // 1.7) เกษตรอินทรีย์ & พัฒนาคุณภาพสินค้าเกษตร (GAP): ทุกหมู่บ้านในตำบลที่เลือก บ้านละ 5 คน
+        // 1.7) เกษตรอินทรีย์ & พัฒนาคุณภาพสินค้าเกษตร (GAP): ทุกหมู่บ้านในตำบลที่เลือก สุ่ม 3-4 บ้าน บ้านละ 5 คน
         if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt) && tambonName) {
             const tamObj = (cfg.tambons || []).find(function (t) { return t && t.name === tambonName; });
             const maxMoo = Math.max(1, parseInt(tamObj && tamObj.mooCount, 10) || 10);
             const pool = [];
             for (let m = 1; m <= maxMoo; m++) pool.push(m);
-            const moos = pickFromPool(pool, 1, seed, true);
+            const pickCnt = Math.min(maxMoo, 3 + Math.floor(Math.random() * 2)); // 3-4 บ้าน
+            const moos = pickFromPool(pool, pickCnt, seed, true);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tambonName,
                 targetCount: String(moos.length * 5)
@@ -4233,18 +4235,23 @@
         const orderedFieldActs = visitingActs.length ? visitingActs : selActs;
         let mooCursor = 0;
 
-        // ล็อกวันลงพื้นที่ "สุขภาพพืช" (อ.สีดา): ต้องลงก่อนวันที่ 20 ของทุกเดือน แยก 2 วัน วันละหมู่ (ม.7 โพนทอง 1 คน, ม.4 สามเมือง 1 คน)
+        // ล็อกวันลงพื้นที่ "สุขภาพพืช" (อ.สีดา): อยู่ระหว่างวันที่ 10-20 ของทุกเดือน แยก 2 วัน วันละหมู่ (ม.7 โพนทอง 1 คน, ม.4 สามเมือง 1 คน)
         const plantHealthDayMap = {};
         if (cfg.isSida && plantHealthAct) {
-            const before20Idx = [];
-            fieldDays.forEach(function (fd, idx) { if (fd.day < 20) before20Idx.push(idx); });
-            if (before20Idx.length >= 2) {
-                const i1 = before20Idx[Math.min(1, before20Idx.length - 2)];
-                const i2 = before20Idx[Math.min(Math.max(i1 + 2, Math.floor(before20Idx.length / 2)), before20Idx.length - 1)];
+            const in10to20Idx = [];
+            const fallbackBefore20 = [];
+            fieldDays.forEach(function (fd, idx) {
+                if (fd.day >= 10 && fd.day <= 20) in10to20Idx.push(idx);
+                if (fd.day <= 20) fallbackBefore20.push(idx);
+            });
+            const cand = in10to20Idx.length >= 2 ? in10to20Idx : fallbackBefore20;
+            if (cand.length >= 2) {
+                const i1 = cand[0];
+                const i2 = cand[Math.min(Math.max(1, Math.floor(cand.length / 2)), cand.length - 1)];
                 plantHealthDayMap[i1] = { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' };
                 plantHealthDayMap[i2] = { locationRaw: 'หมู่ 4 ตำบลสามเมือง', targetCount: '1' };
-            } else if (before20Idx.length === 1) {
-                plantHealthDayMap[before20Idx[0]] = { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' };
+            } else if (cand.length === 1) {
+                plantHealthDayMap[cand[0]] = { locationRaw: 'หมู่ 7 ตำบลโพนทอง', targetCount: '1' };
             }
         }
 
