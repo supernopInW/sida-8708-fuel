@@ -3882,7 +3882,7 @@
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Zoning by Agri-Map', detail: 'ติดตามปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', target: '10', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรแปลงใหญ่', detail: 'ติดตามเยี่ยมเยียนและบริหารจัดการแปลงใหญ่เพื่อเพิ่มผลิตภาพการผลิต', target: '30', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', detail: 'จัดทำแผนพัฒนาและขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', target: '10', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', detail: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่ (ก่อนวันที่ 20)', target: '1', checked: true },
+        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', detail: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่', target: '1', checked: true },
         { category: 'การจัดการข้อมูล (DATA MANAGEMENT)', activity: 'ด้านข้อมูลสารสนเทศ', detail: 'ขึ้นทะเบียน ปรับปรุงทะเบียนเกษตรกร และรายงานข้อมูลสารสนเทศด้านพืช', target: '50', checked: true }
     ];
 
@@ -3942,6 +3942,34 @@
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tambonName,
                 targetCount: String(moos.length * 50)
+            };
+        }
+
+        // 1.6) เกษตรที่เป็นมิตรกับสิ่งแวดล้อม: ทุกหมู่บ้านในอำเภอสีดา (ทั้ง 5 ตำบล)
+        if (/มิตรกับสิ่งแวดล้อม|หยุดเผา/.test(txt)) {
+            const allTams = (cfg.tambons && cfg.tambons.length) ? cfg.tambons : [{ name: tambonName || 'สีดา', mooCount: 10 }];
+            const tIdx = randomMode ? Math.floor(Math.random() * allTams.length) : (Math.abs(seed || 0) % allTams.length);
+            const tObj = allTams[tIdx];
+            const maxMoo = Math.max(1, parseInt(tObj.mooCount, 10) || 10);
+            const pool = [];
+            for (let m = 1; m <= maxMoo; m++) pool.push(m);
+            const moos = pickFromPool(pool, 2, seed, true);
+            return {
+                locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tObj.name,
+                targetCount: '30'
+            };
+        }
+
+        // 1.7) เกษตรอินทรีย์ & พัฒนาคุณภาพสินค้าเกษตร (GAP): ทุกหมู่บ้านในตำบลที่เลือก บ้านละ 5 คน
+        if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt) && tambonName) {
+            const tamObj = (cfg.tambons || []).find(function (t) { return t && t.name === tambonName; });
+            const maxMoo = Math.max(1, parseInt(tamObj && tamObj.mooCount, 10) || 10);
+            const pool = [];
+            for (let m = 1; m <= maxMoo; m++) pool.push(m);
+            const moos = pickFromPool(pool, 1, seed, true);
+            return {
+                locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tambonName,
+                targetCount: String(moos.length * 5)
             };
         }
 
