@@ -4527,6 +4527,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                     <button type="button" onclick="window.__tvReport?.syncPlanToClaim8708()" class="px-2.5 py-1.5 rounded-lg border border-teal-400 bg-teal-50 hover:bg-teal-100 text-teal-900 font-semibold" title="นำวันที่และสถานที่ทั้งหมดจากแผนนี้ไปอัปเดตในตัวเบิก 8708 + บก.111 (คงระยะทาง กม. และรูปแผนที่เดิมตามวันที่)">🔄 ซิงก์เข้าตัวเบิก 8708</button>
                     <button type="button" onclick="window.__tvReport?.sendPlanToTvWeb()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm" title="ส่งรายการแผนทั้งหมดไปกรอกในเว็บ T&amp;V กรมฯ (tandv.doae.go.th) อัตโนมัติผ่านส่วนเสริม v1.2.0">🚀 ส่งแผนเข้าเว็บ T&amp;V</button>
                     <button type="button" onclick="window.__tvReport?.exportPlanWord()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">📥 Word แนวนอน</button>
+                    <button type="button" onclick="window.__tvReport?.exportPlanExcel()" class="px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white font-semibold shadow-sm" title="ดาวน์โหลดแผนดำเนินงาน T&amp;V เป็นไฟล์ Excel (.xls)">📊 Excel</button>
                     <button type="button" onclick="window.__tvReport?.printPlanPdf()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-semibold shadow-sm">🖨️ พิมพ์ / PDF</button>
                 </div>
             </div>
@@ -4554,6 +4555,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 <div class="flex flex-wrap items-center gap-1.5">
                     <button type="button" onclick="window.__tvReport?.render(true)" class="px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-medium">🔄 ซิงก์จากวันที่เบิก</button>
                     <button type="button" onclick="window.__tvReport?.exportWord()" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold shadow-sm">📥 Word แนวนอน (.doc)</button>
+                    <button type="button" onclick="window.__tvReport?.exportExcel()" class="px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white font-semibold shadow-sm" title="ดาวน์โหลดรายงานผลการปฏิบัติงาน T&amp;V เป็นไฟล์ Excel (.xls)">📊 Excel (.xls)</button>
                     <button type="button" onclick="window.__tvReport?.printPdf()" class="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-semibold shadow-sm">🖨️ พิมพ์ / PDF แนวนอน</button>
                 </div>
             </div>
@@ -8546,6 +8548,158 @@ window.ORG = {
         }
     }
 
+    function tvrExcelCellBr(htmlOrText) {
+        return String(htmlOrText || '')
+            .replace(/<span[^>]*>/gi, '')
+            .replace(/<\/span>/gi, '')
+            .replace(/<br\s*\/?>/gi, '<br style="mso-data-placement:same-cell;">')
+            .replace(/\r?\n/g, '<br style="mso-data-placement:same-cell;">');
+    }
+
+    function tvrDownloadExcelFile(sheetName, tableInnerHtml, fileBaseName) {
+        const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+            '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>' +
+            '<x:Name>' + escH(sheetName).slice(0, 31) + '</x:Name>' +
+            '<x:WorksheetOptions><x:PageSetup><x:Layout x:Orientation="Landscape"/><x:PageMargins x:Bottom="0.5" x:Left="0.4" x:Right="0.4" x:Top="0.5"/></x:PageSetup><x:Print><x:ValidPrinterInfo/><x:PaperSizeIndex>9</x:PaperSizeIndex><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight></x:Print><x:FitToPage/></x:WorksheetOptions>' +
+            '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->' +
+            '<style>' +
+            'body, table, td, th { font-family: "TH SarabunIT๙", "TH SarabunPSK", "TH Sarabun New", sans-serif; font-size: 14pt; color: #000; }' +
+            'table { border-collapse: collapse; }' +
+            'td, th { vertical-align: top; mso-number-format: "\\@"; }' +
+            '.xl-title { text-align: center; font-weight: 700; font-size: 16pt; border: none; }' +
+            '.xl-th { border: 1px solid #000; text-align: center; font-weight: 700; background: #f1f5f9; padding: 5px; }' +
+            '.xl-td { border: 1px solid #000; padding: 4px 6px; white-space: normal; }' +
+            '.xl-c { text-align: center; }' +
+            '.xl-r { text-align: right; }' +
+            '.xl-sign { border: none; text-align: center; font-size: 15pt; padding-top: 8px; }' +
+            '</style></head><body>' + tableInnerHtml + '</body></html>';
+        const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = String(fileBaseName || 'TV_Export').replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]+/g, '_');
+        a.download = safeName + '.xls';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+    }
+
+    function exportTvReportExcel() {
+        const rows = tvrBuildRows(false);
+        const meta = tvrGetFormMeta();
+        if (!rows || !rows.length) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีข้อมูลรายงานผล T&V ให้ส่งออก Excel');
+            return;
+        }
+        const bodyRows = rows.map(function (r) {
+            return '<tr>' +
+                '<td class="xl-td xl-c">' + escH(r.seq) + '</td>' +
+                '<td class="xl-td">' + escH(r.category) + '</td>' +
+                '<td class="xl-td">' + escH(r.activity) + '</td>' +
+                '<td class="xl-td xl-c">' + (r.done ? '√' : '') + '</td>' +
+                '<td class="xl-td xl-c">' + (!r.done ? '√' : '') + '</td>' +
+                '<td class="xl-td xl-c">' + escH(r.result) + '</td>' +
+                '<td class="xl-td xl-c">' + tvrExcelCellBr(r.dateHtml) + '</td>' +
+                '<td class="xl-td">' + tvrExcelCellBr(tvrFormatLocationHtml(r.location)) + '</td>' +
+                '<td class="xl-td xl-r">' + escH(r.targetCount) + '</td>' +
+                '<td class="xl-td">' + escH(r.problem) + '</td>' +
+                '<td class="xl-td">' + escH(r.solution) + '</td>' +
+                '<td class="xl-td">' + escH(r.suggestion) + '</td>' +
+                '</tr>';
+        }).join('');
+
+        const tbl = '<table>' +
+            '<colgroup><col width="45"><col width="145"><col width="170"><col width="55"><col width="65"><col width="70"><col width="115"><col width="175"><col width="80"><col width="90"><col width="90"><col width="90"></colgroup>' +
+            '<tr><td colspan="12" class="xl-title">รายงานผลการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</td></tr>' +
+            '<tr><td colspan="12" class="xl-title">' + escH(meta.officerName) + '</td></tr>' +
+            '<tr><td colspan="12" class="xl-title">หน่วยงาน ' + escH(meta.officeName) + ' จังหวัด' + escH(meta.province) + '</td></tr>' +
+            '<tr><td colspan="12" class="xl-title">' + escH(meta.monthYear) + '</td></tr>' +
+            '<tr><td colspan="12" style="border:none;height:8px;"></td></tr>' +
+            '<tr>' +
+                '<th rowspan="2" class="xl-th">ลำดับ</th>' +
+                '<th rowspan="2" class="xl-th">ประเด็น</th>' +
+                '<th colspan="3" class="xl-th">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>' +
+                '<th rowspan="2" class="xl-th">ผลดำเนินงาน</th>' +
+                '<th rowspan="2" class="xl-th">วันที่ดำเนินการ</th>' +
+                '<th rowspan="2" class="xl-th">สถานที่ดำเนินการ</th>' +
+                '<th rowspan="2" class="xl-th">จำนวนบุคคลเป้าหมาย<br style="mso-data-placement:same-cell;">(ราย/กลุ่ม)</th>' +
+                '<th rowspan="2" class="xl-th">ปัญหาอุปสรรค</th>' +
+                '<th rowspan="2" class="xl-th">แนวทางแก้ไข</th>' +
+                '<th rowspan="2" class="xl-th">ข้อเสนอแนะ</th>' +
+            '</tr>' +
+            '<tr>' +
+                '<th class="xl-th">กิจกรรม</th>' +
+                '<th class="xl-th">ดำเนินการ</th>' +
+                '<th class="xl-th">ไม่ได้ดำเนินการ</th>' +
+            '</tr>' +
+            bodyRows +
+            '<tr><td colspan="12" style="border:none;height:18px;"></td></tr>' +
+            '<tr><td colspan="6" class="xl-sign"><b>ผู้จัดทำรายงาน</b><br style="mso-data-placement:same-cell;"><br style="mso-data-placement:same-cell;">........................................................<br style="mso-data-placement:same-cell;">( ' + escH(meta.leftName) + ' )<br style="mso-data-placement:same-cell;">ตำแหน่ง ' + escH(meta.leftPos) + '<br style="mso-data-placement:same-cell;">หน่วยงาน ' + escH(meta.leftOrg) + '</td>' +
+                '<td colspan="6" class="xl-sign"><b>ผู้บังคับบัญชา/ผู้รับรอง</b><br style="mso-data-placement:same-cell;"><br style="mso-data-placement:same-cell;">........................................................<br style="mso-data-placement:same-cell;">( ' + escH(meta.rightName) + ' )<br style="mso-data-placement:same-cell;">ตำแหน่ง ' + escH(meta.rightPos) + '<br style="mso-data-placement:same-cell;">หน่วยงาน ' + escH(meta.rightOrg) + '</td></tr>' +
+            '</table>';
+
+        tvrDownloadExcelFile('รายงานผล T&V', tbl, 'รายงานผล_TV_' + (meta.officerName || 'report'));
+        if (typeof global.showToast === 'function') global.showToast('📊 ดาวน์โหลด Excel รายงานผล T&V (.xls) เรียบร้อยแล้ว');
+    }
+
+    function exportPlanExcel() {
+        const plan = tvrEnsurePlanItems();
+        const meta = tvrGetFormMeta();
+        if (!plan || !Array.isArray(plan.items) || !plan.items.length) {
+            if (typeof global.showToast === 'function') global.showToast('ยังไม่มีข้อมูลแผนดำเนินงาน T&V ให้ส่งออก Excel');
+            return;
+        }
+        const bodyRows = plan.items.map(function (it, idx) {
+            const cat = String(it.category || (it.isFieldTrip ? 'การเยี่ยมเยียน (VISITING)' : 'การถ่ายทอดความรู้ (TRAINING)')).replace(/^[\}\]\s]+/, '').trim();
+            const act = String(it.activity || '').trim();
+            const det = String(it.detail || it.activity || '').trim();
+            const dateHtml = tvrFormatDateCell(it.dateParsed, it.dateDisplay, it.dateRaw);
+            const loc = String(it.locationRaw || '').trim();
+            const target = String(it.targetCount || '').trim();
+            const note = String(it.note || '').trim();
+            return '<tr>' +
+                '<td class="xl-td xl-c">' + (idx + 1) + '</td>' +
+                '<td class="xl-td">' + escH(cat) + '</td>' +
+                '<td class="xl-td">' + escH(act) + '</td>' +
+                '<td class="xl-td">' + tvrExcelCellBr(tvrFormatDetailHtml(det)) + '</td>' +
+                '<td class="xl-td xl-c">' + tvrExcelCellBr(dateHtml) + '</td>' +
+                '<td class="xl-td">' + tvrExcelCellBr(tvrFormatLocationHtml(loc)) + '</td>' +
+                '<td class="xl-td xl-r">' + escH(target) + '</td>' +
+                '<td class="xl-td">' + escH(note) + '</td>' +
+                '</tr>';
+        }).join('');
+
+        const tbl = '<table>' +
+            '<colgroup><col width="50"><col width="165"><col width="185"><col width="230"><col width="125"><col width="195"><col width="95"><col width="95"></colgroup>' +
+            '<tr><td colspan="8" class="xl-title">แผนการปฏิบัติงาน ตามระบบส่งเสริมการเกษตร (T&amp;V System) รายบุคคล</td></tr>' +
+            '<tr><td colspan="8" class="xl-title">' + escH(meta.officerName) + '</td></tr>' +
+            '<tr><td colspan="8" class="xl-title">หน่วยงาน ' + escH(meta.officeName) + ' จังหวัด' + escH(meta.province) + '</td></tr>' +
+            '<tr><td colspan="8" class="xl-title">' + escH(meta.monthYear) + '</td></tr>' +
+            '<tr><td colspan="8" style="border:none;height:8px;"></td></tr>' +
+            '<tr>' +
+                '<th rowspan="2" class="xl-th">ลำดับ</th>' +
+                '<th rowspan="2" class="xl-th">ประเด็น</th>' +
+                '<th colspan="2" class="xl-th">กิจกรรมที่ดำเนินการ/งานที่ปฏิบัติ</th>' +
+                '<th rowspan="2" class="xl-th">ช่วงเวลาดำเนินการ</th>' +
+                '<th rowspan="2" class="xl-th">สถานที่ดำเนินการ</th>' +
+                '<th rowspan="2" class="xl-th">จำนวนบุคคลเป้าหมาย<br style="mso-data-placement:same-cell;">(ราย/กลุ่ม)</th>' +
+                '<th rowspan="2" class="xl-th">หมายเหตุ</th>' +
+            '</tr>' +
+            '<tr>' +
+                '<th class="xl-th">กิจกรรม</th>' +
+                '<th class="xl-th">รายละเอียด</th>' +
+            '</tr>' +
+            bodyRows +
+            '<tr><td colspan="8" style="border:none;height:18px;"></td></tr>' +
+            '<tr><td colspan="4" class="xl-sign"><b>ผู้จัดทำแผน</b><br style="mso-data-placement:same-cell;"><br style="mso-data-placement:same-cell;">........................................................<br style="mso-data-placement:same-cell;">( ' + escH(meta.leftName) + ' )<br style="mso-data-placement:same-cell;">ตำแหน่ง ' + escH(meta.leftPos) + '<br style="mso-data-placement:same-cell;">หน่วยงาน ' + escH(meta.leftOrg) + '</td>' +
+                '<td colspan="4" class="xl-sign"><b>ผู้บังคับบัญชา/ผู้รับรอง</b><br style="mso-data-placement:same-cell;"><br style="mso-data-placement:same-cell;">........................................................<br style="mso-data-placement:same-cell;">( ' + escH(meta.rightName) + ' )<br style="mso-data-placement:same-cell;">ตำแหน่ง ' + escH(meta.rightPos) + '<br style="mso-data-placement:same-cell;">หน่วยงาน ' + escH(meta.rightOrg) + '</td></tr>' +
+            '</table>';
+
+        tvrDownloadExcelFile('แผนดำเนินงาน T&V', tbl, 'แผนดำเนินงาน_TV_' + (meta.officerName || 'plan'));
+        if (typeof global.showToast === 'function') global.showToast('📊 ดาวน์โหลด Excel แผนดำเนินงาน T&V (.xls) เรียบร้อยแล้ว');
+    }
+
     function exportPlanWord() {
         const bodyHtml = tvrBuildPlanDocumentHtml('word');
         if (!bodyHtml) return;
@@ -9075,6 +9229,7 @@ window.ORG = {
         syncPlanToClaim8708: syncPlanToClaim8708,
         sendPlanToTvWeb: sendPlanToTvWeb,
         exportPlanWord: exportPlanWord,
+        exportPlanExcel: exportPlanExcel,
         openBuilderModal: openBuilderModal,
         closeBuilderModal: closeBuilderModal,
         renderBuilderHolidayCalendar: renderBuilderHolidayCalendar,
@@ -9085,6 +9240,7 @@ window.ORG = {
         toggleDone: toggleTvReportDone,
         updateField: updateTvReportField,
         exportWord: exportTvReportWord,
+        exportExcel: exportTvReportExcel,
         printPdf: printTvReportPdf,
         printPlanPdf: printPlanPdf,
         printMapsPdf: printMapsPdf
