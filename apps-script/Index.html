@@ -3218,7 +3218,7 @@
                         <b>มีไฟล์แผน T&amp;V (.docx) แล้ว?</b> นำเข้าครั้งเดียวเติมชื่อ + ผู้รับรอง + วันที่ไปราชการ + จุดแวะ DOH ครบทุกวัน
                     </div>
                     <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-teal-700 hover:bg-teal-800 text-white font-semibold px-3 py-1.5 text-xs shadow-sm transition-colors">
-                        📥 นำเข้าแผน T&amp;V (.docx)
+                        📥 นำเข้าแผน T&amp;V (Word/Excel)
                     </button>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950 mt-2">
@@ -3386,7 +3386,7 @@
     
     <div class="w-full lg:w-1/2 bg-slate-100 p-4 form-area">
         <form id="doc-form" class="max-w-4xl mx-auto space-y-6" autocomplete="off">
-            <input type="file" id="in-tv-docx-file" accept=".docx" class="hidden" onchange="window.__tvDoh?.handleTvDocxInputChange(this)">
+            <input type="file" id="in-tv-docx-file" accept=".docx,.xlsx,.xls,.csv" class="hidden" onchange="window.__tvDoh?.handleTvDocxInputChange(this)">
             <input type="file" id="in-jobs-backup-file" accept=".json,application/json" class="hidden" onchange="window.__jobMgr?.handleImportBackupFile(this)">
             <!-- แถบจัดการงานเบิก (บันทึกงานเบิกนี้ / งานเบิกใหม่ / กลับมาแก้ไข / ย้อนกลับ) -->
             <div id="active-job-bar" class="no-print bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm space-y-2">
@@ -3408,7 +3408,7 @@
                     <button type="button" onclick="window.__jobMgr?.openSaveAsModal()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-900">📑 บันทึกเป็นงานใหม่</button>
                     <button type="button" onclick="window.__jobMgr?.openNewJobModal()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-900">➕ งานเบิกใหม่</button>
                     <button type="button" onclick="window.__jobMgr?.openJobsModal()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900">📂 งานที่บันทึกไว้ (<span class="js-saved-jobs-count">0</span>)</button>
-                    <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-teal-600 bg-teal-700 text-white hover:bg-teal-800 shadow-sm">📥 นำเข้าแผน T&amp;V (.docx)</button>
+                    <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-teal-600 bg-teal-700 text-white hover:bg-teal-800 shadow-sm">📥 นำเข้าแผน T&amp;V (Word/Excel)</button>
                     <button type="button" onclick="recalculateAllFromToolbar()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">🔄 คำนวณยอดใหม่</button>
                     <span id="gas-cloud-bar" class="hidden inline-flex flex-wrap items-center gap-1.5 ml-auto">
                         <button type="button" onclick="window.__tvDohCloud?.saveForm8708DraftToCloud()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-sky-400 bg-sky-50 text-sky-900 hover:bg-sky-100">☁️ บันทึกลง Drive/Sheets</button>
@@ -3879,7 +3879,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2 p-2 rounded border border-teal-300 bg-teal-50/70 text-[11px] text-teal-950 no-print">
                         <span>ดึงลำดับวัน + จุดแวะ (สนง.เกษตรฯ → หมู่บ้านตามแผน → สนง.เกษตรฯ) จากไฟล์แผน Word</span>
                         <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="shrink-0 px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs shadow-sm">
-                            📥 นำเข้าแผน T&amp;V (.docx)
+                            📥 นำเข้าแผน T&amp;V (Word/Excel)
                         </button>
                     </div>
                     <div class="flex flex-wrap items-end gap-3 mb-2 p-2 rounded border border-amber-200 bg-amber-50/80">

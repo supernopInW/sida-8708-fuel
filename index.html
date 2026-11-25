@@ -3724,7 +3724,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                         <b>มีไฟล์แผน T&amp;V (.docx) แล้ว?</b> นำเข้าครั้งเดียวเติมชื่อ + ผู้รับรอง + วันที่ไปราชการ + จุดแวะ DOH ครบทุกวัน
                     </div>
                     <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-teal-700 hover:bg-teal-800 text-white font-semibold px-3 py-1.5 text-xs shadow-sm transition-colors">
-                        📥 นำเข้าแผน T&amp;V (.docx)
+                        📥 นำเข้าแผน T&amp;V (Word/Excel)
                     </button>
                 </div>
                 <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-2 text-xs text-indigo-950 mt-2">
@@ -3892,7 +3892,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
     
     <div class="w-full lg:w-1/2 bg-slate-100 p-4 form-area">
         <form id="doc-form" class="max-w-4xl mx-auto space-y-6" autocomplete="off">
-            <input type="file" id="in-tv-docx-file" accept=".docx" class="hidden" onchange="window.__tvDoh?.handleTvDocxInputChange(this)">
+            <input type="file" id="in-tv-docx-file" accept=".docx,.xlsx,.xls,.csv" class="hidden" onchange="window.__tvDoh?.handleTvDocxInputChange(this)">
             <input type="file" id="in-jobs-backup-file" accept=".json,application/json" class="hidden" onchange="window.__jobMgr?.handleImportBackupFile(this)">
             <!-- แถบจัดการงานเบิก (บันทึกงานเบิกนี้ / งานเบิกใหม่ / กลับมาแก้ไข / ย้อนกลับ) -->
             <div id="active-job-bar" class="no-print bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm space-y-2">
@@ -3914,7 +3914,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                     <button type="button" onclick="window.__jobMgr?.openSaveAsModal()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-sky-300 bg-sky-50 hover:bg-sky-100 text-sky-900">📑 บันทึกเป็นงานใหม่</button>
                     <button type="button" onclick="window.__jobMgr?.openNewJobModal()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-emerald-400 bg-emerald-50 hover:bg-emerald-100 text-emerald-900">➕ งานเบิกใหม่</button>
                     <button type="button" onclick="window.__jobMgr?.openJobsModal()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900">📂 งานที่บันทึกไว้ (<span class="js-saved-jobs-count">0</span>)</button>
-                    <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-teal-600 bg-teal-700 text-white hover:bg-teal-800 shadow-sm">📥 นำเข้าแผน T&amp;V (.docx)</button>
+                    <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="text-xs font-semibold px-2.5 py-1.5 rounded-md border border-teal-600 bg-teal-700 text-white hover:bg-teal-800 shadow-sm">📥 นำเข้าแผน T&amp;V (Word/Excel)</button>
                     <button type="button" onclick="recalculateAllFromToolbar()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">🔄 คำนวณยอดใหม่</button>
                     <span id="gas-cloud-bar" class="hidden inline-flex flex-wrap items-center gap-1.5 ml-auto">
                         <button type="button" onclick="window.__tvDohCloud?.saveForm8708DraftToCloud()" class="text-xs font-medium px-2.5 py-1.5 rounded-md border border-sky-400 bg-sky-50 text-sky-900 hover:bg-sky-100">☁️ บันทึกลง Drive/Sheets</button>
@@ -4385,7 +4385,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2 p-2 rounded border border-teal-300 bg-teal-50/70 text-[11px] text-teal-950 no-print">
                         <span>ดึงลำดับวัน + จุดแวะ (สนง.เกษตรฯ → หมู่บ้านตามแผน → สนง.เกษตรฯ) จากไฟล์แผน Word</span>
                         <button type="button" onclick="window.__tvDoh?.triggerTvDocxPicker()" class="shrink-0 px-2.5 py-1 rounded bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs shadow-sm">
-                            📥 นำเข้าแผน T&amp;V (.docx)
+                            📥 นำเข้าแผน T&amp;V (Word/Excel)
                         </button>
                     </div>
                     <div class="flex flex-wrap items-end gap-3 mb-2 p-2 rounded border border-amber-200 bg-amber-50/80">
@@ -5331,7 +5331,8 @@ window.ORG = {
             const name = dec.decode(bytes.subarray(ptr + 46, ptr + 46 + nameLen));
             ptr += 46 + nameLen + extraLen + commentLen;
 
-            if (name === 'word/document.xml' || /^word\/header\d*\.xml$/.test(name)) {
+            if (name === 'word/document.xml' || /^word\/header\d*\.xml$/.test(name) ||
+                name === 'xl/sharedStrings.xml' || /^xl\/worksheets\/sheet\d+\.xml$/.test(name)) {
                 if (view.getUint32(localHeaderOffset, true) !== 0x04034b50) continue;
                 const lNameLen = view.getUint16(localHeaderOffset + 26, true);
                 const lExtraLen = view.getUint16(localHeaderOffset + 28, true);
@@ -6245,6 +6246,235 @@ window.ORG = {
         if (inp) inp.click();
     }
 
+    function excelColRefToIdx(ref) {
+        const m = String(ref || '').match(/^([A-Z]+)/i);
+        if (!m) return -1;
+        let idx = 0;
+        const letters = m[1].toUpperCase();
+        for (let i = 0; i < letters.length; i++) {
+            idx = idx * 26 + (letters.charCodeAt(i) - 64);
+        }
+        return idx - 1;
+    }
+
+    function excelSerialToThaiDate(val) {
+        const n = Number(val);
+        if (!Number.isFinite(n) || n < 35000 || n > 65000) return String(val || '').trim();
+        const utcMs = Math.round((n - 25569) * 86400 * 1000);
+        const dt = new Date(utcMs);
+        if (isNaN(dt.getTime())) return String(val || '').trim();
+        const mAbbr = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        const d = dt.getUTCDate();
+        const m = dt.getUTCMonth() + 1;
+        const yBE = dt.getUTCFullYear() + 543;
+        return d + ' ' + mAbbr[m] + ' ' + String(yBE).slice(-2);
+    }
+
+    function parseCsvTextToGrid(text) {
+        const rows = [];
+        let row = [], cell = '', inQ = false;
+        const s = String(text || '').replace(/^\ufeff/, '');
+        for (let i = 0; i < s.length; i++) {
+            const ch = s[i];
+            if (inQ) {
+                if (ch === '"' && s[i + 1] === '"') { cell += '"'; i++; }
+                else if (ch === '"') inQ = false;
+                else cell += ch;
+            } else {
+                if (ch === '"') inQ = true;
+                else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+                else if (ch === '\r') { /* ignore */ }
+                else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
+                else cell += ch;
+            }
+        }
+        if (cell.length || row.length) { row.push(cell.trim()); rows.push(row); }
+        return rows;
+    }
+
+    async function parseExcelPlanArrayBuffer(arrayBuffer, fileName) {
+        const bytes = new Uint8Array(arrayBuffer);
+        const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
+        const lowerName = String(fileName || '').toLowerCase();
+        let grid = [];
+
+        if (isZip) {
+            // .xlsx (OOXML ZIP)
+            const xmlFiles = await unzipXmlFiles(arrayBuffer);
+            const parser = new DOMParser();
+            const sharedStrings = [];
+            if (xmlFiles['xl/sharedStrings.xml']) {
+                const ssDoc = parser.parseFromString(xmlFiles['xl/sharedStrings.xml'], 'text/xml');
+                Array.from(ssDoc.getElementsByTagName('si')).forEach(function (si) {
+                    const tNodes = si.getElementsByTagName('t');
+                    let s = '';
+                    for (let i = 0; i < tNodes.length; i++) s += (tNodes[i].textContent || '');
+                    sharedStrings.push(s.replace(/\s+/g, ' ').trim());
+                });
+            }
+            const sheetKey = Object.keys(xmlFiles).sort().find(function (k) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(k); });
+            if (!sheetKey) throw new Error('ไม่พบชีตข้อมูลในไฟล์ .xlsx');
+            const shDoc = parser.parseFromString(xmlFiles[sheetKey], 'text/xml');
+            Array.from(shDoc.getElementsByTagName('row')).forEach(function (rowEl) {
+                const rArr = [];
+                Array.from(rowEl.getElementsByTagName('c')).forEach(function (cEl) {
+                    const colIdx = excelColRefToIdx(cEl.getAttribute('r'));
+                    const tAttr = cEl.getAttribute('t') || '';
+                    let val = '';
+                    if (tAttr === 's') {
+                        const vEl = cEl.getElementsByTagName('v')[0];
+                        const sIdx = vEl ? parseInt(vEl.textContent || '0', 10) : -1;
+                        val = (sIdx >= 0 && sharedStrings[sIdx] != null) ? sharedStrings[sIdx] : '';
+                    } else if (tAttr === 'inlineStr') {
+                        const tNodes = cEl.getElementsByTagName('t');
+                        for (let i = 0; i < tNodes.length; i++) val += (tNodes[i].textContent || '');
+                    } else {
+                        const vEl = cEl.getElementsByTagName('v')[0];
+                        val = vEl ? (vEl.textContent || '') : '';
+                    }
+                    val = String(val || '').replace(/\s+/g, ' ').trim();
+                    if (colIdx >= 0) rArr[colIdx] = val;
+                    else rArr.push(val);
+                });
+                if (rArr.some(Boolean)) grid.push(rArr.map(function (x) { return x || ''; }));
+            });
+        } else {
+            const dec = new TextDecoder('utf-8');
+            const text = dec.decode(bytes);
+            if (lowerName.endsWith('.csv') || (!/<table/i.test(text) && !/<Row/i.test(text))) {
+                grid = parseCsvTextToGrid(text);
+            } else if (/<table/i.test(text)) {
+                // HTML-based .xls (เช่นไฟล์ที่ส่งออกจากระบบนี้ หรือเว็บกรมฯ)
+                const doc = new DOMParser().parseFromString(text, 'text/html');
+                const trs = Array.from(doc.querySelectorAll('tr'));
+                trs.forEach(function (tr) {
+                    const cells = Array.from(tr.children).map(function (td) {
+                        return String(td.textContent || '').replace(/\s+/g, ' ').trim();
+                    });
+                    if (cells.some(Boolean)) grid.push(cells);
+                });
+            } else {
+                // SpreadsheetML 2003 XML .xls
+                const doc = new DOMParser().parseFromString(text, 'text/xml');
+                Array.from(doc.getElementsByTagName('Row')).forEach(function (rowEl) {
+                    const cells = Array.from(rowEl.getElementsByTagName('Cell')).map(function (cEl) {
+                        return String(cEl.textContent || '').replace(/\s+/g, ' ').trim();
+                    });
+                    if (cells.some(Boolean)) grid.push(cells);
+                });
+            }
+        }
+
+        if (!grid.length) throw new Error('ไม่พบข้อมูลตารางในไฟล์ Excel');
+
+        let reportTitle = '';
+        let officerName = '';
+        let periodText = '';
+        let approverName = '';
+        let approverPosition = '';
+        let officerPosition = '';
+        let isReport12Col = false;
+
+        // ตรวจหัวเรื่องและคอลัมน์จากแถวส่วนหัว
+        let colMap = { seq: 0, category: 1, activity: 2, detail: 3, date: 4, location: 5, target: 6, note: 7 };
+        for (let r = 0; r < grid.length; r++) {
+            const joined = grid[r].join(' ').replace(/\s+/g, ' ').trim();
+            if (!joined) continue;
+            if (joined.indexOf('แผนการปฏิบัติงาน') !== -1 || joined.indexOf('รายงานผลการปฏิบัติงาน') !== -1) reportTitle = joined;
+            else if (joined.indexOf('ประจำเดือน') !== -1 && !periodText) periodText = joined;
+            else if (!officerName && /^(นาย|นาง|นางสาว|ว่าที่)/.test(joined) && joined.length < 70 && joined.indexOf('ผู้บังคับบัญชา') === -1) {
+                officerName = joined.replace(/\s*(?:หน่วยงาน|ตำแหน่ง|ตำบลที่รับผิดชอบ)[\s\S]*$/, '').trim();
+            }
+            if (joined.indexOf('ผลดำเนินงาน') !== -1 || joined.indexOf('ไม่ได้ดำเนินการ') !== -1) {
+                isReport12Col = true;
+            }
+            if (joined.indexOf('ผู้บังคับบัญชา') !== -1) {
+                const am = joined.match(/ผู้บังคับบัญชา\/ผู้รับรอง[^()]*\(\s*([^)]+)\s*\)/);
+                if (am) approverName = am[1].trim();
+            }
+        }
+        if (isReport12Col) {
+            // ตารางรายงานผล 12 คอลัมน์: ลำดับ(0), ประเด็น(1), กิจกรรม(2), ดำเนินการ(3), ไม่ได้ดำเนินการ(4), ผล(5), วันที่(6), สถานที่(7), เป้าหมาย(8), ปัญหา(9)
+            colMap = { seq: 0, category: 1, activity: 2, detail: 2, date: 6, location: 7, target: 8, note: 9 };
+        }
+
+        const rawRows = [];
+        grid.forEach(function (cells) {
+            const c0 = String(cells[colMap.seq] || '').replace(/[๐-๙]/g, function (c) { return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c)); }).trim();
+            if (!/^\d+\.?$/.test(c0)) return;
+            // ถ้าระบุ 12 คอลัมน์แต่แถวนี้มีแค่ 8 ช่อง ให้ปรับอัตโนมัติ
+            const use12 = isReport12Col && cells.length >= 8 && !parseThaiDateCell(cells[4]).day && (parseThaiDateCell(cells[6]).day || /^\d{5}$/.test(cells[6] || ''));
+            const dIdx = use12 ? 6 : 4;
+            const lIdx = use12 ? 7 : 5;
+            const tIdx = use12 ? 8 : 6;
+            const nIdx = use12 ? 9 : 7;
+            const detIdx = use12 ? 2 : 3;
+
+            let dateRaw = String(cells[dIdx] || '').trim();
+            if (/^\d{5}(\.\d+)?$/.test(dateRaw)) dateRaw = excelSerialToThaiDate(dateRaw);
+            const locRaw = String(cells[lIdx] || '').trim();
+            if (!dateRaw && !locRaw) return;
+
+            rawRows.push({
+                seq: c0,
+                seqNum: parseInt(c0.replace(/[^\d]/g, ''), 10) || (rawRows.length + 1),
+                category: String(cells[1] || '').trim(),
+                activity: String(cells[2] || '').trim(),
+                detail: String(cells[detIdx] || cells[2] || '').trim(),
+                dateRaw: dateRaw,
+                locationRaw: locRaw,
+                targetCount: String(cells[tIdx] || '').trim(),
+                note: String(cells[nIdx] || '').trim()
+            });
+        });
+
+        if (!rawRows.length) {
+            throw new Error('ไม่พบแถวรายการแผนในไฟล์ Excel (ต้องมีคอลัมน์ ลำดับ, ประเด็น, กิจกรรม, วันที่, สถานที่)');
+        }
+
+        const items = rawRows.map(function (row) {
+            const dateParsed = parseThaiDateCell(row.dateRaw);
+            const resolved = resolveTvLocationRaw(row.locationRaw);
+            return Object.assign({}, row, {
+                dateParsed: dateParsed,
+                dateDisplay: dateParsed.display8708,
+                dateIso: dateParsed.iso,
+                isFieldTrip: resolved.isFieldTrip,
+                destOrder: resolved.destOrder,
+                destText: resolved.destText,
+                customStops: resolved.customStops,
+                stops: resolved.stops,
+                routeSummary: resolved.routeSummary
+            });
+        });
+
+        let hadOutOfOrderDates = false;
+        for (let i = 1; i < items.length; i++) {
+            if (items[i].dateIso && items[i - 1].dateIso && items[i].dateIso < items[i - 1].dateIso) {
+                hadOutOfOrderDates = true;
+                break;
+            }
+        }
+        const sortedItems = items.slice().sort(function (a, b) {
+            const da = a.dateIso || '9999-99-99';
+            const db = b.dateIso || '9999-99-99';
+            if (da !== db) return da < db ? -1 : 1;
+            return (a.seqNum || 0) - (b.seqNum || 0);
+        });
+
+        return {
+            fileName: fileName || 'plan.xlsx',
+            reportTitle: reportTitle,
+            officerName: officerName,
+            officerPosition: officerPosition,
+            periodText: periodText,
+            approverName: approverName,
+            approverPosition: approverPosition,
+            hadOutOfOrderDates: hadOutOfOrderDates,
+            items: sortedItems
+        };
+    }
+
     async function handleTvDocxInputChange(input) {
         const file = input && input.files && input.files[0];
         if (input) {
@@ -6254,11 +6484,14 @@ window.ORG = {
         try {
             if (typeof global.showToast === 'function') global.showToast('กำลังอ่านไฟล์แผนการเดินทาง ' + file.name + '...');
             const buf = await file.arrayBuffer();
-            const parsed = await parseDocxPlanArrayBuffer(buf, file.name);
+            const isExcel = /\.(xlsx|xls|csv)$/i.test(file.name || '');
+            const parsed = isExcel
+                ? await parseExcelPlanArrayBuffer(buf, file.name)
+                : await parseDocxPlanArrayBuffer(buf, file.name);
             _pendingPlan = parsed;
             openTvImportModal(parsed);
         } catch (err) {
-            alert('อ่านไฟล์ Word (.docx) ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+            alert('อ่านไฟล์แผน (' + (file.name || '') + ') ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
         }
     }
 
