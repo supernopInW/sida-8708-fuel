@@ -3926,12 +3926,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div id="tv-chief-plan-header" class="font-bold text-violet-950">📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span></div>
                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <input type="file" id="in-chief-excel-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="window.__tvReport?.handleChiefExcelUpload?.(this)">
                         <select id="tv-chief-preset-month" onchange="window.__tvReport?.loadChiefPresetMonth?.(this.value)" class="px-2 py-0.5 rounded border border-violet-400 bg-white text-violet-950 font-semibold text-[10px] outline-none" title="เลือกเดือนแผนเกษตรอำเภอ (นางอรอนงค์ สูญกลาง)">
                             <option value="2569-12">📅 ธ.ค. 69 (20 วัน)</option>
                             <option value="2569-11">📅 พ.ย. 69 (21 วัน)</option>
                             <option value="2569-10">📅 ต.ค. 69 (20 วัน)</option>
                             <option value="__CUSTOM__">📌 แผนที่บันทึกเอง</option>
                         </select>
+                        <button type="button" onclick="document.getElementById('in-chief-excel-file')?.click()" class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-[10px] shadow-sm" title="อัปโหลดไฟล์ Excel/CSV แผน Visit.1 ที่หัวหน้าส่งมาแต่ละเดือน — ระบบแปลงเป็นแผนเกษตรอำเภอทุกตำบลให้อัตโนมัติ">📥 อัปโหลดไฟล์หัวหน้า (Excel)</button>
                         <button type="button" onclick="window.__tvReport?.saveCurrentAsChiefPlan?.()" class="px-2 py-0.5 rounded border border-violet-400 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]" title="บันทึกแผน T&amp;V ปัจจุบันเป็นแผนของเกษตรอำเภอ">💾 บันทึกเป็นแผนเกษตรอำเภอ</button>
                         <button type="button" id="btn-toggle-chief-list" onclick="window.__tvReport?.toggleChiefList?.()" class="hidden px-2 py-0.5 rounded border border-violet-300 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]">ซ่อน/แสดงรายการ</button>
                     </div>
@@ -8401,12 +8403,242 @@ window.ORG = {
         ])
     };
 
+    const TVR_CHIEF_UPLOADED_MAP_KEY = 'sida_tv_chief_uploaded_months_v1';
+
+    function mapChiefRawActivityToTv(rawAct, rawTool) {
+        const s = String(rawAct || '').replace(/\s+/g, ' ').trim();
+        const low = s.toLowerCase();
+        const isMeeting = /ประชุม|สัมมนา|district workshop|weekly meeting|district meeting|\bdm\b|\bwm\b/i.test(s) || /^ประชุม$/i.test(String(rawTool || '').trim());
+        if (isMeeting) {
+            if (/ประจำสัปดาห์|\bwm\b/i.test(s)) return { cat: 'T', act: 'Weekly Meeting : WM', det: s };
+            if (/district workshop|\bdw\b/i.test(s)) return { cat: 'T', act: 'District Workshop : DW', det: s };
+            return { cat: 'T', act: 'District Meeting : DM', det: s };
+        }
+        if (/ทะเบียนเกษตรกร|สารสนเทศ/.test(low)) return { cat: 'D', act: 'ด้านข้อมูลสารสนเทศ', det: s };
+        if (/smart farmer|ysf|young smart/.test(low)) return { cat: 'V', act: 'Smart Farmer / Young Smart Farmer', det: s };
+        if (/วิสาหกิจ/.test(low)) return { cat: 'V', act: 'วิสาหกิจชุมชน', det: s };
+        if (/ศูนย์เรียนรู้|ศพก/.test(low)) return { cat: 'V', act: 'ศพก.', det: s };
+        if (/ยกระดับคุณภาพ|มาตรฐานสินค้าเกษตร|\bgap\b/.test(low)) return { cat: 'V', act: 'พัฒนาคุณภาพสินค้าเกษตร', det: s };
+        if (/แปลงใหญ่/.test(low)) return { cat: 'V', act: 'เกษตรแปลงใหญ่', det: s };
+        if (/สุขภาพพืช/.test(low)) return { cat: 'V', act: 'โครงการส่งเสริมการจัดการสุขภาพพืชเพื่อเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร', det: 'สำรวจติดตามสถานการณ์การระบาดของศัตรูพืชและสุขภาพพืชในพื้นที่' };
+        if (/ศัตรูพืช|ศจช/.test(low)) return { cat: 'V', act: 'อื่นๆ : โครงการศูนย์จัดการศัตรูพืชชุมชน', det: s };
+        if (/ดินปุ๋ย|ศดปช/.test(low)) return { cat: 'V', act: 'อื่นๆ : โครงการศูนย์จัดการดินปุ๋ยชุมชน', det: s };
+        if (/เกษตรอินทรีย์/.test(low)) return { cat: 'V', act: 'เกษตรอินทรีย์', det: s };
+        if (/มิตรกับสิ่งแวดล้อม|หยุดเผา/.test(low)) return { cat: 'V', act: 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', det: s };
+        if (/องค์กรเกษตรกร|\(3ก\)|กลุ่มแม่บ้าน|กลุ่มเกษตรกร/.test(low)) return { cat: 'V', act: 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', det: s };
+        if (/zoning|agri-map|agrimap/.test(low)) return { cat: 'V', act: 'Zoning by Agri-Map', det: s };
+        if (/มูลค่าสูง/.test(low)) return { cat: 'V', act: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', det: s };
+        return { cat: 'V', act: s.indexOf('อื่นๆ') === 0 ? s : ('อื่นๆ : ' + s), det: s };
+    }
+
+    function parseLooseThaiDateForChief(raw) {
+        let s = String(raw || '').replace(/[๐-๙]/g, function (c) { return String('๐๑๒๓๔๕๖๗๘๙'.indexOf(c)); }).replace(/\s+/g, ' ').trim();
+        if (/^\d{5}(\.\d+)?$/.test(s)) s = excelSerialToThaiDate(s);
+        // รองรับเดือนภาษาพูด/ไม่มีจุด เช่น มีนา, กุมภา, เมษา, พย, ตค, กย, พค
+        const aliasMap = {
+            'มค': 'ม.ค.', 'มกรา': 'ม.ค.', 'มกราคม': 'ม.ค.',
+            'กพ': 'ก.พ.', 'กุมภา': 'ก.พ.', 'กุมภาพันธ์': 'ก.พ.',
+            'มีค': 'มี.ค.', 'มีนา': 'มี.ค.', 'มีนาคม': 'มี.ค.',
+            'เมย': 'เม.ย.', 'เมษา': 'เม.ย.', 'เมษายน': 'เม.ย.',
+            'พค': 'พ.ค.', 'พฤษภา': 'พ.ค.', 'พฤษภาคม': 'พ.ค.',
+            'มิย': 'มิ.ย.', 'มิถุนา': 'มิ.ย.', 'มิถุนายน': 'มิ.ย.',
+            'กค': 'ก.ค.', 'กรกฎา': 'ก.ค.', 'กรกฎาคม': 'ก.ค.',
+            'สค': 'ส.ค.', 'สิงหา': 'ส.ค.', 'สิงหาคม': 'ส.ค.',
+            'กย': 'ก.ย.', 'กันยา': 'ก.ย.', 'กันยายน': 'ก.ย.',
+            'ตค': 'ต.ค.', 'ตุลา': 'ต.ค.', 'ตุลาคม': 'ต.ค.',
+            'พย': 'พ.ย.', 'พฤศจิกา': 'พ.ย.', 'พฤศจิกายน': 'พ.ย.',
+            'ธค': 'ธ.ค.', 'ธันวา': 'ธ.ค.', 'ธันวาคม': 'ธ.ค.'
+        };
+        const m = s.match(/(\d{1,2})\s*([ก-ฮ\.]+)\s*(\d{2,4})/);
+        if (!m) return null;
+        const day = parseInt(m[1], 10);
+        const rawMo = m[2].replace(/\./g, '').trim();
+        const normMo = aliasMap[rawMo] || m[2].trim();
+        let yr = parseInt(m[3], 10);
+        if (yr < 100) yr += 2500;
+        if (yr < 2400) yr += 543;
+        if (day < 1 || day > 31) return null;
+        const p = parseThaiDateCell(day + ' ' + normMo + ' ' + yr);
+        if (!p || !p.day || p.monthIdx < 0) return null;
+        const maxD = new Date(yr - 543, p.monthIdx + 1, 0).getDate();
+        if (day > maxD) return null; // กรองวันผิดพลาด เช่น 31 เม.ย., 32 ม.ค.
+        return p;
+    }
+
+    function getAllChiefPresets() {
+        const merged = Object.assign({}, SIDA_CHIEF_PRESETS);
+        try {
+            const raw = localStorage.getItem(TVR_CHIEF_UPLOADED_MAP_KEY);
+            if (raw) {
+                const obj = JSON.parse(raw);
+                if (obj && typeof obj === 'object') Object.assign(merged, obj);
+            }
+        } catch (e) { /* ignore */ }
+        return merged;
+    }
+
+    function refreshChiefPresetDropdown(activeKey) {
+        const sel = document.getElementById('tv-chief-preset-month');
+        if (!sel) return;
+        const all = getAllChiefPresets();
+        const keys = Object.keys(all).sort().reverse();
+        const mAbbr = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+        let html = keys.map(function (k) {
+            const p = all[k];
+            const parts = k.split('-');
+            const y2 = (parts[0] || '').slice(-2);
+            const mn = parseInt(parts[1] || '0', 10);
+            const label = '📅 ' + (mAbbr[mn] || k) + ' ' + y2 + ' (' + ((p && p.items && p.items.length) || 0) + ' วัน)';
+            return '<option value="' + escHtml(k) + '">' + escHtml(label) + '</option>';
+        }).join('');
+        html += '<option value="__CUSTOM__">📌 แผนที่บันทึกเอง</option>';
+        sel.innerHTML = html;
+        if (activeKey && (all[activeKey] || activeKey === '__CUSTOM__')) sel.value = activeKey;
+    }
+
+    async function handleChiefExcelUpload(input) {
+        const file = input && input.files && input.files[0];
+        if (input) { try { input.value = ''; } catch (e) { /* ignore */ } }
+        if (!file) return;
+        try {
+            if (typeof global.showToast === 'function') global.showToast('📥 กำลังอ่านไฟล์แผนหัวหน้า ' + file.name + '...');
+            const buf = await file.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            const isZip = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04;
+            const grids = [];
+
+            if (isZip) {
+                const xmlFiles = await unzipXmlFiles(buf);
+                const parser = new DOMParser();
+                const sharedStrings = [];
+                if (xmlFiles['xl/sharedStrings.xml']) {
+                    const ssDoc = parser.parseFromString(xmlFiles['xl/sharedStrings.xml'], 'text/xml');
+                    Array.from(ssDoc.getElementsByTagName('si')).forEach(function (si) {
+                        const tNodes = si.getElementsByTagName('t');
+                        let s = '';
+                        for (let i = 0; i < tNodes.length; i++) s += (tNodes[i].textContent || '');
+                        sharedStrings.push(s.replace(/\s+/g, ' ').trim());
+                    });
+                }
+                Object.keys(xmlFiles).sort().forEach(function (k) {
+                    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(k)) return;
+                    const shDoc = parser.parseFromString(xmlFiles[k], 'text/xml');
+                    const rows = [];
+                    Array.from(shDoc.getElementsByTagName('row')).forEach(function (rowEl) {
+                        const rArr = [];
+                        Array.from(rowEl.getElementsByTagName('c')).forEach(function (cEl) {
+                            const colIdx = excelColRefToIdx(cEl.getAttribute('r'));
+                            const tAttr = cEl.getAttribute('t') || '';
+                            let val = '';
+                            if (tAttr === 's') {
+                                const vEl = cEl.getElementsByTagName('v')[0];
+                                const sIdx = vEl ? parseInt(vEl.textContent || '0', 10) : -1;
+                                val = (sIdx >= 0 && sharedStrings[sIdx] != null) ? sharedStrings[sIdx] : '';
+                            } else if (tAttr === 'inlineStr') {
+                                const tNodes = cEl.getElementsByTagName('t');
+                                for (let i = 0; i < tNodes.length; i++) val += (tNodes[i].textContent || '');
+                            } else {
+                                const vEl = cEl.getElementsByTagName('v')[0];
+                                val = vEl ? (vEl.textContent || '') : '';
+                            }
+                            val = String(val || '').replace(/\s+/g, ' ').trim();
+                            if (colIdx >= 0) rArr[colIdx] = val;
+                            else rArr.push(val);
+                        });
+                        if (rArr.some(Boolean)) rows.push(rArr.map(function (x) { return x || ''; }));
+                    });
+                    if (rows.length) grids.push(rows);
+                });
+            } else {
+                const text = new TextDecoder('utf-8').decode(bytes);
+                if (/<table/i.test(text)) {
+                    const doc = new DOMParser().parseFromString(text, 'text/html');
+                    const rows = [];
+                    doc.querySelectorAll('tr').forEach(function (tr) {
+                        const cells = Array.from(tr.children).map(function (td) { return String(td.textContent || '').replace(/\s+/g, ' ').trim(); });
+                        if (cells.some(Boolean)) rows.push(cells);
+                    });
+                    if (rows.length) grids.push(rows);
+                } else {
+                    grids.push(parseCsvTextToGrid(text));
+                }
+            }
+
+            const cfg = getActiveOrgConfig();
+            const allTambonLoc = (cfg.tambons && cfg.tambons.length)
+                ? cfg.tambons.map(function (t) { return 'ตำบล' + t.name; }).join(' ')
+                : SIDA_ALL_TAMBONS_LOC;
+            const byMonth = {};
+            let detectedChief = 'นางอรอนงค์ สูญกลาง';
+
+            grids.forEach(function (rows) {
+                rows.forEach(function (cells) {
+                    const joined = cells.join(' ');
+                    const cm = joined.match(/ชื่อ\s*((?:นาย|นาง|นางสาว)\s*[ก-ฮะ-์]+\s+[ก-ฮะ-์]+)/);
+                    if (cm && cm[1]) detectedChief = cm[1].replace(/\s+/g, ' ').trim();
+
+                    // รูปแบบ Visit.1 ของหัวหน้า: col 1 = วัน เดือน ปี, col 2 = กิจกรรม, col 3 = เครื่องมือ, col 4 = สถานที่, col 5 = เป้าหมาย
+                    const dParsed = parseLooseThaiDateForChief(cells[1]);
+                    const actRaw = String(cells[2] || '').trim();
+                    if (!dParsed || !actRaw) return;
+                    if (/วันหยุด|ลงชื่อ|ตำแหน่ง|วันที่\.|\(นาง|\(นาย/i.test(actRaw)) return;
+
+                    const mapped = mapChiefRawActivityToTv(actRaw, cells[3]);
+                    const rawLoc = String(cells[4] || '').trim();
+                    let loc = allTambonLoc;
+                    if (mapped.cat === 'T') {
+                        loc = /เกษตรจังหวัด|โนนสูง|อำเภอ/i.test(rawLoc) && !/สีดา/.test(rawLoc) ? rawLoc : (rawLoc && !/ประชาสัมพันธ์|ตำบล\s*[…\.]+/.test(rawLoc) ? rawLoc : cfg.officeName);
+                    } else if (/สำนักงานเกษตรจังหวัด/i.test(rawLoc)) {
+                        loc = rawLoc;
+                    }
+                    const targetM = String(cells[5] || '').match(/\d+/);
+                    const targetCount = targetM ? targetM[0] : (mapped.cat === 'T' ? '7' : '10');
+
+                    const mKey = dParsed.yearBE + '-' + String(dParsed.monthIdx + 1).padStart(2, '0');
+                    if (!byMonth[mKey]) byMonth[mKey] = { yearBE: dParsed.yearBE, monthNum: dParsed.monthIdx + 1, monthAbbr: dParsed.monthAbbr, monthFull: dParsed.monthFull, rowsByDay: {} };
+                    // กันแถวซ้ำวันเดียวกัน (ใช้รายการล่าสุดของวันนั้น)
+                    byMonth[mKey].rowsByDay[dParsed.day] = [dParsed.day, mapped.cat, mapped.act, mapped.det, loc, targetCount];
+                });
+            });
+
+            const mKeys = Object.keys(byMonth).sort().reverse();
+            if (!mKeys.length) {
+                alert('ไม่พบรายการแผน Visit.1 ในไฟล์ ' + file.name + ' (ต้องมีคอลัมน์ วัน เดือน ปี และ กิจกรรม/งานที่ปฏิบัติ)');
+                return;
+            }
+
+            let savedMap = {};
+            try { savedMap = JSON.parse(localStorage.getItem(TVR_CHIEF_UPLOADED_MAP_KEY) || '{}') || {}; } catch (e) { savedMap = {}; }
+
+            mKeys.forEach(function (k) {
+                const g = byMonth[k];
+                const sortedDays = Object.keys(g.rowsByDay).map(Number).sort(function (a, b) { return a - b; });
+                const spec = sortedDays.map(function (d) { return g.rowsByDay[d]; });
+                const planObj = buildChiefPresetPlan(g.yearBE, g.monthNum, g.monthAbbr, g.monthFull, spec);
+                planObj.chiefName = detectedChief;
+                savedMap[k] = planObj;
+            });
+
+            try { localStorage.setItem(TVR_CHIEF_UPLOADED_MAP_KEY, JSON.stringify(savedMap)); } catch (e) { /* ignore */ }
+            const latestKey = mKeys[0];
+            try { localStorage.setItem(TVR_CHIEF_STORAGE_KEY, JSON.stringify(savedMap[latestKey])); } catch (e) { /* ignore */ }
+            refreshChiefPresetDropdown(latestKey);
+            renderChiefPlanPanel();
+            if (typeof global.showToast === 'function') {
+                global.showToast('✅ แปลงไฟล์แผนหัวหน้าสำเร็จ ' + mKeys.length + ' เดือน! แสดงเดือนล่าสุด (' + savedMap[latestKey].monthHeader + ' · ' + savedMap[latestKey].items.length + ' วัน) แล้วครับ');
+            }
+        } catch (err) {
+            alert('อ่านไฟล์แผนหัวหน้าไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+        }
+    }
+
     function loadChiefPresetMonth(key) {
         if (key === '__CUSTOM__') {
             renderChiefPlanPanel();
             return;
         }
-        const preset = SIDA_CHIEF_PRESETS[key];
+        const all = getAllChiefPresets();
+        const preset = all[key];
         if (!preset) return;
         try { localStorage.setItem(TVR_CHIEF_STORAGE_KEY, JSON.stringify(preset)); } catch (e) { /* ignore */ }
         renderChiefPlanPanel();
@@ -8488,10 +8720,9 @@ window.ORG = {
         populateChiefRandomTambonSelect();
 
         const chief = tvrLoadChiefPlan();
-        const presetSel = document.getElementById('tv-chief-preset-month');
-        if (presetSel && chief) {
-            presetSel.value = (chief.presetKey && SIDA_CHIEF_PRESETS[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
-        }
+        const allPresets = getAllChiefPresets();
+        const activePresetKey = (chief && chief.presetKey && allPresets[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
+        refreshChiefPresetDropdown(activePresetKey);
         if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
             hdr.innerHTML = '📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span>';
             body.classList.add('hidden');
@@ -8544,10 +8775,9 @@ window.ORG = {
 
     function applyChiefPlan(mode) {
         const chief = tvrLoadChiefPlan();
-        const presetSel = document.getElementById('tv-chief-preset-month');
-        if (presetSel && chief) {
-            presetSel.value = (chief.presetKey && SIDA_CHIEF_PRESETS[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
-        }
+        const allPresets = getAllChiefPresets();
+        const activePresetKey = (chief && chief.presetKey && allPresets[chief.presetKey]) ? chief.presetKey : '__CUSTOM__';
+        refreshChiefPresetDropdown(activePresetKey);
         if (!chief || !Array.isArray(chief.items) || !chief.items.length) {
             if (typeof global.showToast === 'function') global.showToast('ยังไม่มีแผนของเกษตรอำเภอที่บันทึกไว้ กรุณาให้เกษตรอำเภอสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ" ก่อนครับ');
             return;
@@ -9860,6 +10090,7 @@ window.ORG = {
         refreshPlanLinkBanner: refreshPlanLinkBanner,
         renderChiefPlanPanel: renderChiefPlanPanel,
         loadChiefPresetMonth: loadChiefPresetMonth,
+        handleChiefExcelUpload: handleChiefExcelUpload,
         saveCurrentAsChiefPlan: saveCurrentAsChiefPlan,
         applyChiefPlan: applyChiefPlan,
         toggleChiefList: toggleChiefList,

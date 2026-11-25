@@ -3420,12 +3420,14 @@
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div id="tv-chief-plan-header" class="font-bold text-violet-950">📌 แผนการลงพื้นที่ของเกษตรอำเภอ: <span class="font-normal text-violet-800">ยังไม่มีแผนที่บันทึกไว้ (เลือกตำแหน่ง "เกษตรอำเภอ" แล้วสร้าง/แนบแผน หรือกด "💾 บันทึกเป็นแผนเกษตรอำเภอ")</span></div>
                     <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <input type="file" id="in-chief-excel-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="window.__tvReport?.handleChiefExcelUpload?.(this)">
                         <select id="tv-chief-preset-month" onchange="window.__tvReport?.loadChiefPresetMonth?.(this.value)" class="px-2 py-0.5 rounded border border-violet-400 bg-white text-violet-950 font-semibold text-[10px] outline-none" title="เลือกเดือนแผนเกษตรอำเภอ (นางอรอนงค์ สูญกลาง)">
                             <option value="2569-12">📅 ธ.ค. 69 (20 วัน)</option>
                             <option value="2569-11">📅 พ.ย. 69 (21 วัน)</option>
                             <option value="2569-10">📅 ต.ค. 69 (20 วัน)</option>
                             <option value="__CUSTOM__">📌 แผนที่บันทึกเอง</option>
                         </select>
+                        <button type="button" onclick="document.getElementById('in-chief-excel-file')?.click()" class="px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-[10px] shadow-sm" title="อัปโหลดไฟล์ Excel/CSV แผน Visit.1 ที่หัวหน้าส่งมาแต่ละเดือน — ระบบแปลงเป็นแผนเกษตรอำเภอทุกตำบลให้อัตโนมัติ">📥 อัปโหลดไฟล์หัวหน้า (Excel)</button>
                         <button type="button" onclick="window.__tvReport?.saveCurrentAsChiefPlan?.()" class="px-2 py-0.5 rounded border border-violet-400 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]" title="บันทึกแผน T&amp;V ปัจจุบันเป็นแผนของเกษตรอำเภอ">💾 บันทึกเป็นแผนเกษตรอำเภอ</button>
                         <button type="button" id="btn-toggle-chief-list" onclick="window.__tvReport?.toggleChiefList?.()" class="hidden px-2 py-0.5 rounded border border-violet-300 bg-white hover:bg-violet-100 text-violet-900 font-semibold text-[10px]">ซ่อน/แสดงรายการ</button>
                     </div>
