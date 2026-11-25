@@ -3284,6 +3284,7 @@
                     if (locked) {
                         copy.locationRaw = locked.locationRaw;
                         if (locked.targetCount) copy.targetCount = locked.targetCount;
+                        if (locked.detail) copy.detail = locked.detail;
                         copy.isFieldTrip = true;
                     } else {
                         const maxMoo = Math.max(1, parseInt(tam.mooCount, 10) || 10);
@@ -3974,12 +3975,26 @@
             };
         }
 
+        // 1.8) ศพก. (หลัก / เครือข่าย): หลักอยู่หมู่ 4 ต.สามเมือง, เครือข่ายอยู่หมู่ 4 ต.หนองตาดใหญ่
+        if (/ศพก/.test(txt)) {
+            if (String(tambonName || '').trim() === 'สามเมือง') {
+                return {
+                    locationRaw: 'หมู่ 4 ตำบลสามเมือง',
+                    targetCount: '10',
+                    detail: 'ติดตามเยี่ยมเยียนศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก. หลัก)'
+                };
+            }
+            if (String(tambonName || '').trim() === 'หนองตาดใหญ่') {
+                return {
+                    locationRaw: 'หมู่ 4 ตำบลหนองตาดใหญ่',
+                    targetCount: '10',
+                    detail: 'ติดตามเยี่ยมเยียนศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก. เครือข่าย)'
+                };
+            }
+        }
+
         // 2) เงื่อนไขล็อกเฉพาะตำบลหนองตาดใหญ่
         if (String(tambonName || '').trim() === 'หนองตาดใหญ่') {
-            if (/ศพก/.test(txt)) {
-                const moos = pickFromPool([2, 4], 1, seed, randomMode);
-                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
-            }
             if (/แปลงใหญ่|เมล็ดพันธุ์ข้าว|ศูนย์ข้าว/.test(txt)) {
                 const moos = pickFromPool([5, 6], 1, seed, randomMode);
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
@@ -4280,7 +4295,7 @@
                 return {
                     category: actObj.category,
                     activity: actObj.activity,
-                    detail: actObj.detail,
+                    detail: locked.detail || actObj.detail,
                     dateDisplay: fd.dateDisplay,
                     dateRaw: fd.dateDisplay,
                     dateIso: fd.dateIso,
