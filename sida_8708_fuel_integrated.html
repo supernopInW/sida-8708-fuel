@@ -9008,7 +9008,6 @@ window.ORG = {
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรอินทรีย์', detail: 'ตรวจติดตามและส่งเสริมการผลิตเกษตรอินทรีย์', target: '5', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการส่งเสริมการเกษตรที่เป็นมิตรกับสิ่งแวดล้อม', detail: 'รณรงค์หยุดเผาในพื้นที่การเกษตรและจัดการเศษวัสดุการเกษตร', target: '30', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'กลุ่มเกษตรกร / กลุ่มแม่บ้านเกษตรกร', detail: 'เยี่ยมเยียนและพัฒนาความเข้มแข็งองค์กรเกษตรกร', target: '30', checked: true },
-        { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : กลุ่มเมล็ดพันธุ์ข้าว', detail: 'ติดตามและพัฒนาการผลิตเมล็ดพันธุ์ข้าวคุณภาพดี (กลุ่มเมล็ดพันธุ์ข้าว)', target: '15', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'Zoning by Agri-Map', detail: 'ติดตามปรับเปลี่ยนการผลิตพืชที่เหมาะสมตามแผนที่ Zoning by Agri-Map', target: '10', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'เกษตรแปลงใหญ่', detail: 'ติดตามเยี่ยมเยียนและบริหารจัดการแปลงใหญ่เพื่อเพิ่มผลิตภาพการผลิต', target: '30', checked: true },
         { category: 'การเยี่ยมเยียน (VISITING)', activity: 'อื่นๆ : โครงการขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', detail: 'จัดทำแผนพัฒนาและขับเคลื่อนการเกษตรระดับหมู่บ้านสู่การผลิตสินค้าเกษตรมูลค่าสูง', target: '10', checked: true },
@@ -9109,16 +9108,13 @@ window.ORG = {
                 const moos = pickFromPool([2, 4], 1, seed, randomMode);
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
             }
-            if (/แปลงใหญ่/.test(txt)) {
+            if (/แปลงใหญ่|เมล็ดพันธุ์ข้าว|ศูนย์ข้าว/.test(txt)) {
                 const moos = pickFromPool([5, 6], 1, seed, randomMode);
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
             }
             if (/smart farmer|ysf|young smart/.test(txt)) {
                 const moos = pickFromPool([3, 5], 1, seed, randomMode);
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '2' };
-            }
-            if (/เมล็ดพันธุ์ข้าว|ศูนย์ข้าว/.test(txt)) {
-                return { locationRaw: 'หมู่ 5 ตำบลหนองตาดใหญ่', targetCount: '15' };
             }
             if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt)) {
                 const moos = pickFromPool([1, 2, 3, 4, 5, 6, 7, 8, 9], 1, seed, randomMode);
