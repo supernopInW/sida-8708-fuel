@@ -9104,6 +9104,11 @@ window.ORG = {
                 const moos = pickFromPool([2, 3, 8, 9], 2, seed, randomMode);
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
             }
+            if (/zoning|agri-map|agrimap/.test(txt)) {
+                const pickCnt = 2 + Math.floor(Math.random() * 3); // 2-4 บ้านจากหมู่ 2, 3, 8, 9
+                const moos = pickFromPool([2, 3, 8, 9], pickCnt, seed, true);
+                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: String(moos.length * 2) };
+            }
         }
         return null;
     }
