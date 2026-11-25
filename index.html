@@ -8399,6 +8399,20 @@ window.ORG = {
 
         let rr = Math.floor(Math.random() * 10);
         let plantHealthIdx = 0;
+        const visitCounts = {};
+        const markVisitedLoc = function (locStr) {
+            const mTam = String(locStr || '').match(/ตำบล([ก-ฮะ-์]+)/);
+            if (!mTam) return;
+            const tn = mTam[1];
+            if (!visitCounts[tn]) visitCounts[tn] = {};
+            const mMoo = String(locStr || '').match(/หมู่\s*([0-9,\s]+)/);
+            if (mMoo) {
+                (mMoo[1].match(/\d+/g) || []).forEach(function (d) {
+                    const n = parseInt(d, 10);
+                    if (n > 0) visitCounts[tn][n] = (visitCounts[tn][n] || 0) + 1;
+                });
+            }
+        };
         const newItems = chief.items.map(function (src, idx) {
             const copy = Object.assign({}, src, { seqNum: idx + 1 });
             if (mode === 'random_tambon') {
@@ -8410,20 +8424,22 @@ window.ORG = {
                     copy.isFieldTrip = false;
                 } else {
                     const tam = activePool[(rr++) % activePool.length];
-                    const locked = resolveSidaLockedPlace(copy.activity, copy.detail, tam.name, /สุขภาพพืช/i.test(rawAct) ? (plantHealthIdx++) : rr, true);
+                    const locked = resolveSidaLockedPlace(copy.activity, copy.detail, tam.name, /สุขภาพพืช/i.test(rawAct) ? (plantHealthIdx++) : rr, true, visitCounts);
                     if (locked) {
                         copy.locationRaw = locked.locationRaw;
                         if (locked.targetCount) copy.targetCount = locked.targetCount;
                         if (locked.detail) copy.detail = locked.detail;
                         copy.isFieldTrip = true;
+                        markVisitedLoc(copy.locationRaw);
                     } else {
                         const maxMoo = Math.max(1, parseInt(tam.mooCount, 10) || 10);
-                        const m1 = 1 + Math.floor(Math.random() * maxMoo);
-                        let m2 = 1 + Math.floor(Math.random() * maxMoo);
-                        if (maxMoo > 1 && m2 === m1) m2 = (m1 % maxMoo) + 1;
-                        const moos = (maxMoo > 1 && Math.random() > 0.35) ? [m1, m2].sort(function (a, b) { return a - b; }) : [m1];
+                        const pool = [];
+                        for (let m = 1; m <= maxMoo; m++) pool.push(m);
+                        const pickCnt = Math.min(maxMoo, Math.random() > 0.35 ? 2 : 1);
+                        const moos = pickFromPool(pool, pickCnt, rr, true, visitCounts, tam.name);
                         copy.locationRaw = 'หมู่ ' + moos.join(', ') + ' ตำบล' + tam.name;
                         copy.isFieldTrip = true;
+                        markVisitedLoc(copy.locationRaw);
                     }
                 }
             }
@@ -9020,9 +9036,21 @@ window.ORG = {
      * เงื่อนไขล็อกพื้นที่จริงของ อ.สีดา (ต.หนองตาดใหญ่ + ศจช./ศดปช./สุขภาพพืช)
      * รองรับการขยายเพิ่มตำบลอื่นในอนาคตได้ง่าย
      */
-    function pickFromPool(pool, count, seed, randomMode) {
+    function pickFromPool(pool, count, seed, randomMode, visitCounts, tambonKey) {
         if (!pool || !pool.length) return [];
         const arr = pool.slice();
+        const vc = (visitCounts && tambonKey && visitCounts[tambonKey]) ? visitCounts[tambonKey] : null;
+        if (vc) {
+            // ให้ความสำคัญกับหมู่บ้านที่ยังไม่เคยไป (count น้อยสุดก่อน) พร้อมสุ่มสลับในกลุ่มที่จำนวนครั้งเท่ากัน
+            const decorated = arr.map(function (m) {
+                return { m: m, c: vc[m] || 0, r: Math.random() };
+            });
+            decorated.sort(function (a, b) {
+                if (a.c !== b.c) return a.c - b.c;
+                return a.r - b.r;
+            });
+            return decorated.slice(0, Math.min(count, decorated.length)).map(function (x) { return x.m; }).sort(function (a, b) { return a - b; });
+        }
         if (randomMode) {
             for (let i = arr.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -9039,7 +9067,7 @@ window.ORG = {
         return out.sort(function (a, b) { return a - b; });
     }
 
-    function resolveSidaLockedPlace(actText, detText, tambonName, seed, randomMode) {
+    function resolveSidaLockedPlace(actText, detText, tambonName, seed, randomMode, visitCounts) {
         const cfg = getActiveOrgConfig();
         if (!cfg || !cfg.isSida) return null;
         const txt = (String(actText || '') + ' ' + String(detText || '')).toLowerCase();
@@ -9061,14 +9089,14 @@ window.ORG = {
             return { locationRaw: sites[idx], targetCount: '30' };
         }
 
-        // 1.5) ด้านข้อมูลสารสนเทศ (DATA MANAGEMENT): สุ่ม 2-4 หมู่บ้านในตำบลตัวเอง บ้านละ 50 คน
+        // 1.5) ด้านข้อมูลสารสนเทศ (DATA MANAGEMENT): สุ่ม 2-4 หมู่บ้านในตำบลตัวเอง บ้านละ 50 คน (เน้นหมู่ที่ยังไม่เคยไป)
         if (/ข้อมูลสารสนเทศ|ทะเบียนเกษตรกร|data management/.test(txt) && tambonName) {
             const tamObj = (cfg.tambons || []).find(function (t) { return t && t.name === tambonName; });
             const maxMoo = Math.max(1, parseInt(tamObj && tamObj.mooCount, 10) || 10);
             const allMoos = [];
             for (let m = 1; m <= maxMoo; m++) allMoos.push(m);
             const pickCnt = Math.min(maxMoo, 2 + Math.floor(Math.random() * 3)); // 2-4 บ้าน
-            const moos = pickFromPool(allMoos, pickCnt, seed, true);
+            const moos = pickFromPool(allMoos, pickCnt, seed, true, visitCounts, tambonName);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tambonName,
                 targetCount: String(moos.length * 50)
@@ -9084,21 +9112,21 @@ window.ORG = {
             const pool = [];
             for (let m = 1; m <= maxMoo; m++) pool.push(m);
             const pickCnt = Math.min(maxMoo, 3 + Math.floor(Math.random() * 2)); // 3-4 บ้าน
-            const moos = pickFromPool(pool, pickCnt, seed, true);
+            const moos = pickFromPool(pool, pickCnt, seed, true, visitCounts, tObj.name);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tObj.name,
                 targetCount: String(moos.length * 30)
             };
         }
 
-        // 1.7) เกษตรอินทรีย์ & พัฒนาคุณภาพสินค้าเกษตร (GAP): ทุกหมู่บ้านในตำบลที่เลือก สุ่ม 3-4 บ้าน บ้านละ 5 คน
+        // 1.7) เกษตรอินทรีย์ & พัฒนาคุณภาพสินค้าเกษตร (GAP): ทุกหมู่บ้านในตำบลที่เลือก สุ่ม 3-4 บ้าน บ้านละ 5 คน (เน้นหมู่ที่ยังไม่เคยไป)
         if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt) && tambonName) {
             const tamObj = (cfg.tambons || []).find(function (t) { return t && t.name === tambonName; });
             const maxMoo = Math.max(1, parseInt(tamObj && tamObj.mooCount, 10) || 10);
             const pool = [];
             for (let m = 1; m <= maxMoo; m++) pool.push(m);
             const pickCnt = Math.min(maxMoo, 3 + Math.floor(Math.random() * 2)); // 3-4 บ้าน
-            const moos = pickFromPool(pool, pickCnt, seed, true);
+            const moos = pickFromPool(pool, pickCnt, seed, true, visitCounts, tambonName);
             return {
                 locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบล' + tambonName,
                 targetCount: String(moos.length * 5)
@@ -9126,30 +9154,26 @@ window.ORG = {
         // 2) เงื่อนไขล็อกเฉพาะตำบลหนองตาดใหญ่
         if (String(tambonName || '').trim() === 'หนองตาดใหญ่') {
             if (/แปลงใหญ่|เมล็ดพันธุ์ข้าว|ศูนย์ข้าว/.test(txt)) {
-                const moos = pickFromPool([5, 6], 1, seed, randomMode);
+                const moos = pickFromPool([5, 6], 1, seed, randomMode, visitCounts, 'หนองตาดใหญ่');
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
             }
             if (/smart farmer|ysf|young smart/.test(txt)) {
                 const pickCnt = Math.random() > 0.35 ? 2 : 1; // สุ่ม 1-2 บ้านในหมู่ 3, 5 (ไปพร้อมกันได้)
-                const moos = pickFromPool([3, 5], pickCnt, seed, true);
+                const moos = pickFromPool([3, 5], pickCnt, seed, true, visitCounts, 'หนองตาดใหญ่');
                 const cnt = moos.length === 2 ? '3' : (moos[0] === 3 ? '2' : '1');
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: cnt };
             }
-            if (/เกษตรอินทรีย์|พัฒนาคุณภาพสินค้าเกษตร|\bgap\b/.test(txt)) {
-                const moos = pickFromPool([1, 2, 3, 4, 5, 6, 7, 8, 9], 1, seed, randomMode);
-                return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: String(moos.length * 5) };
-            }
             if (/วิสาหกิจ|แม่บ้าน|กลุ่มเกษตรกร/.test(txt)) {
-                const moos = pickFromPool([2, 3, 4, 5, 8, 9], 2, seed, randomMode);
+                const moos = pickFromPool([2, 3, 4, 5, 8, 9], 2, seed, randomMode, visitCounts, 'หนองตาดใหญ่');
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '30' };
             }
             if (/มูลค่าสูง/.test(txt)) {
-                const moos = pickFromPool([2, 3, 8, 9], 2, seed, randomMode);
+                const moos = pickFromPool([2, 3, 8, 9], 2, seed, randomMode, visitCounts, 'หนองตาดใหญ่');
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: '10' };
             }
             if (/zoning|agri-map|agrimap/.test(txt)) {
                 const pickCnt = 2 + Math.floor(Math.random() * 3); // 2-4 บ้านจากหมู่ 2, 3, 8, 9
-                const moos = pickFromPool([2, 3, 8, 9], pickCnt, seed, true);
+                const moos = pickFromPool([2, 3, 8, 9], pickCnt, seed, true, visitCounts, 'หนองตาดใหญ่');
                 return { locationRaw: 'หมู่ ' + moos.join(', ') + ' ตำบลหนองตาดใหญ่', targetCount: String(moos.length * 2) };
             }
         }
@@ -9403,8 +9427,28 @@ window.ORG = {
         }
 
         let normalActIdx = 0;
+        const visitCounts = {};
+        selTambons.forEach(function (t) {
+            visitCounts[t.name] = {};
+            for (let m = 1; m <= (t.mooCount || 10); m++) visitCounts[t.name][m] = 0;
+        });
+        const recordVisits = function (locStr) {
+            const mTam = String(locStr || '').match(/ตำบล([ก-ฮะ-์]+)/);
+            if (!mTam) return;
+            const tn = mTam[1];
+            if (!visitCounts[tn]) visitCounts[tn] = {};
+            const mMoo = String(locStr || '').match(/หมู่\s*([0-9,\s]+)/);
+            if (mMoo) {
+                (mMoo[1].match(/\d+/g) || []).forEach(function (d) {
+                    const n = parseInt(d, 10);
+                    if (n > 0) visitCounts[tn][n] = (visitCounts[tn][n] || 0) + 1;
+                });
+            }
+        };
+
         const fieldEntries = fieldDays.map(function (fd, idx) {
             if (plantHealthDayMap[idx] && plantHealthAct) {
+                recordVisits(plantHealthDayMap[idx].locationRaw);
                 return {
                     category: plantHealthAct.category,
                     activity: plantHealthAct.activity,
@@ -9422,8 +9466,9 @@ window.ORG = {
             const isLastAndHasData = (dataActs.length > 0 && idx === fieldDays.length - 1);
             const actObj = isLastAndHasData ? dataActs[0] : orderedFieldActs[(normalActIdx++) % orderedFieldActs.length];
             const tam = selTambons[idx % selTambons.length];
-            const locked = resolveSidaLockedPlace(actObj.activity, actObj.detail, tam.name, idx, false);
+            const locked = resolveSidaLockedPlace(actObj.activity, actObj.detail, tam.name, idx, false, visitCounts);
             if (locked) {
+                recordVisits(locked.locationRaw);
                 return {
                     category: actObj.category,
                     activity: actObj.activity,
@@ -9439,13 +9484,11 @@ window.ORG = {
                 };
             }
             const countThisDay = Math.min(tam.mooCount, Math.max(2, (mooPerDay === 3 ? (idx % 2 === 0 ? 2 : 3) : mooPerDay)));
-            const chosenMoos = [];
-            for (let k = 0; k < countThisDay; k++) {
-                const mNo = ((mooCursor + k) % tam.mooCount) + 1;
-                if (chosenMoos.indexOf(mNo) === -1) chosenMoos.push(mNo);
-            }
-            mooCursor += countThisDay;
-            chosenMoos.sort(function (a, b) { return a - b; });
+            const allPool = [];
+            for (let m = 1; m <= tam.mooCount; m++) allPool.push(m);
+            const chosenMoos = pickFromPool(allPool, countThisDay, idx, true, visitCounts, tam.name);
+            const locStr = 'หมู่ ' + chosenMoos.join(', ') + ' ตำบล' + tam.name;
+            recordVisits(locStr);
             return {
                 category: actObj.category,
                 activity: actObj.activity,
@@ -9454,7 +9497,7 @@ window.ORG = {
                 dateRaw: fd.dateDisplay,
                 dateIso: fd.dateIso,
                 dateParsed: fd.dateParsed,
-                locationRaw: 'หมู่ ' + chosenMoos.join(', ') + ' ตำบล' + tam.name,
+                locationRaw: locStr,
                 targetCount: actObj.target,
                 note: '',
                 isFieldTrip: true
